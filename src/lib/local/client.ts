@@ -126,6 +126,14 @@ class Query implements PromiseLike<Result> {
     this.filters.push({ sql: (next) => `${ident(column)} = ${next()}`, values: [value] });
     return this;
   }
+  gte(column: string, value: unknown) {
+    this.filters.push({ sql: (next) => `${ident(column)} >= ${next()}`, values: [value] });
+    return this;
+  }
+  lte(column: string, value: unknown) {
+    this.filters.push({ sql: (next) => `${ident(column)} <= ${next()}`, values: [value] });
+    return this;
+  }
   neq(column: string, value: unknown) {
     this.filters.push({ sql: (next) => `${ident(column)} <> ${next()}`, values: [value] });
     return this;

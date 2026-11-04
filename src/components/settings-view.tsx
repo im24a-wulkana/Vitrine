@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { resetLocalData } from "@/lib/actions/local";
-import { deletePlatform, savePlatform, saveSettings, signOut } from "@/lib/actions/records";
+import { clearLocation, deletePlatform, savePlatform, saveSettings, setCity, signOut } from "@/lib/actions/records";
 import { isLocalMode } from "@/lib/mode";
 import { CURRENCIES, type Platform, type UserSettings } from "@/lib/types";
 
@@ -106,6 +106,51 @@ function LocalData() {
   );
 }
 
+function LocationSettings({ city, hasLocation }: { city: string | null; hasLocation: boolean }) {
+  const [name, setName] = useState(city ?? "");
+  const [message, setMessage] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+
+  return (
+    <section className="flex flex-col gap-2">
+      <h2 className="eyebrow border-b pb-2">Location for weather</h2>
+      <form
+        className="grid grid-cols-[minmax(0,1fr)_auto] gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setMessage(null);
+          start(async () => {
+            const res = await setCity(name);
+            if (!res.ok) return setMessage(res.error);
+            setName(res.data.city);
+            setMessage(`Using ${res.data.city}.`);
+          });
+        }}
+      >
+        <Input aria-label="City" placeholder="City" value={name} onChange={(e) => setName(e.target.value)} />
+        <Button type="submit" variant="outline" disabled={pending}>{pending ? "Finding…" : "Set city"}</Button>
+      </form>
+      {message && <p role="status" className="text-sm">{message}</p>}
+      {hasLocation && (
+        <button
+          type="button"
+          className="self-start text-sm text-muted-foreground underline underline-offset-4"
+          onClick={() =>
+            start(async () => {
+              const res = await clearLocation();
+              setMessage(res.ok ? "Location removed." : res.error);
+              if (res.ok) setName("");
+            })
+          }
+        >
+          Remove location
+        </button>
+      )}
+      <p className="text-xs text-muted-foreground">Sent to Open-Meteo to get the forecast. Nothing else is shared.</p>
+    </section>
+  );
+}
+
 export function SettingsView({ settings, platforms, email }: { settings: UserSettings; platforms: Platform[]; email: string }) {
   const router = useRouter();
   const [currency, setCurrency] = useState(settings.default_currency);
@@ -153,6 +198,8 @@ export function SettingsView({ settings, platforms, email }: { settings: UserSet
         {message && <p role="status" className="text-sm">{message}</p>}
         <Button type="submit" disabled={pending}>{pending ? "Saving…" : "Save settings"}</Button>
       </form>
+
+      <LocationSettings city={settings.city} hasLocation={settings.lat !== null} />
 
       <section>
         <h2 className="eyebrow border-b pb-2">Platforms and fees</h2>

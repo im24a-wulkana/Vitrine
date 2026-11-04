@@ -136,6 +136,10 @@ export interface UserSettings {
   aging_threshold_days: number;
   markdown_percent: number;
   monthly_profit_goal_chf: number | null;
+  city: string | null;
+  lat: number | null;
+  lon: number | null;
+  theme: "dark" | "light" | null;
 }
 
 export interface Offer {

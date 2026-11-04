@@ -188,12 +188,6 @@ export async function seedSampleData(supabase: Client, userId: string): Promise<
       );
     }
 
-    if (item.wears?.length) {
-      check(
-        await supabase.from("wears").insert(item.wears.map((d) => ({ item_id: row.id, worn_on: daysAgo(d) }))),
-        `Wears ${item.key}`,
-      );
-    }
   }
 
   // Cross-listed: selling this one prompts to delist on the other platform.
@@ -258,5 +252,17 @@ export async function seedSampleData(supabase: Client, userId: string): Promise<
       ["shirt", "jeans", "boots", "tote"].map((key, position) => ({ outfit_id: slots.id, item_id: ids.get(key), position, z_index: position })),
     ),
     "Slot outfit items",
+  );
+  // A day's log, built from each item's wears. Two days show a saved outfit.
+  const days = new Map<number, string[]>();
+  for (const item of ITEMS) {
+    for (const day of item.wears ?? []) days.set(day, [...(days.get(day) ?? []), ids.get(item.key) as string]);
+  }
+  const outfitOnDay: Record<number, string> = { 2: canvas.id, 3: slots.id };
+  check(
+    await supabase.from("wear_logs").insert(
+      [...days.entries()].map(([day, item_ids]) => ({ user_id: userId, date: daysAgo(day), item_ids, outfit_id: outfitOnDay[day] ?? null })),
+    ),
+    "Wear logs",
   );
 }

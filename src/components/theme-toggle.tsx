@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Moon, Sun } from "lucide-react";
+import { saveTheme } from "@/lib/actions/records";
 
 /** Dark is the default. The choice is kept on this device, and an inline script in the root layout applies it before first paint. */
 export function ThemeToggle() {
@@ -15,6 +16,7 @@ export function ThemeToggle() {
     setDark(next);
     document.documentElement.classList.toggle("dark", next);
     window.localStorage.setItem("vitrine.theme", next ? "dark" : "light");
+    void saveTheme(next ? "dark" : "light");
     document.querySelector('meta[name="theme-color"]')?.setAttribute("content", next ? "#050505" : "#f5f5f5");
   }
 

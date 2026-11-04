@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { guessMapping, mapRow, parseAmount, parseCsv, parseDate, toCsv, type ColumnMapping } from "../src/lib/csv";
 import { daysBetween, imageFitClass, rankBrands } from "../src/lib/format";
 import { closetTab } from "../src/lib/types";
+import { weatherKind, weatherLabel } from "../src/lib/weather";
 import { clampPosition, defaultPlacement, moveLayer, pieceInSlot, replaceSlot, slotFor } from "../src/lib/outfits";
 import {
   costPerWear, feeFor, groupSales, isUnworn, listingAgeDays, lotSummary, maxBuyPrice, netProfit, priceComps, profitByMonth,
@@ -301,4 +302,11 @@ test("a slot holds one piece: picking replaces it, and null empties it", () => {
   const emptied = replaceSlot(start, "Tops", null, categoryOf);
   assert.deepEqual(emptied.map((p) => p.item_id), ["s1"]);
   assert.equal(pieceInSlot(emptied, "Tops", categoryOf), null);
+});
+
+test("weather codes group correctly, including ones not on the list", () => {
+  const cases: [number, string][] = [[0, "clear"], [1, "clear"], [2, "cloud"], [3, "cloud"], [45, "fog"], [48, "fog"], [51, "rain"], [61, "rain"], [67, "rain"], [80, "rain"], [71, "snow"], [77, "snow"], [85, "snow"], [95, "storm"], [99, "storm"], [42, "cloud"]];
+  for (const [code, kind] of cases) assert.equal(weatherKind(code), kind, String(code));
+  assert.equal(weatherLabel(2), "Partly cloudy");
+  assert.equal(weatherLabel(63), "Rain");
 });

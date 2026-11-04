@@ -53,7 +53,7 @@ async function main() {
     process.exit(1);
   }
   if (reset) {
-    for (const table of ["items", "expenses", "outfits", "wishlist", "lots"]) {
+    for (const table of ["wear_logs", "items", "expenses", "outfits", "wishlist", "lots"]) {
       const { error } = await supabase.from(table).delete().eq("user_id", userId);
       if (error) throw new Error(`Clearing ${table} failed: ${error.message}`);
     }

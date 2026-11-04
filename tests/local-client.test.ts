@@ -26,7 +26,7 @@ before(async () => {
 after(() => db.close());
 
 beforeEach(async () => {
-  await db.exec(`delete from public.items; delete from public.expenses; delete from public.outfits; delete from public.wishlist;`);
+  await db.exec(`delete from public.wear_logs; delete from public.items; delete from public.expenses; delete from public.outfits; delete from public.wishlist;`);
 });
 
 async function item(fields: Record<string, unknown> = {}) {
@@ -126,6 +126,26 @@ test("outfits keep their mode and each piece's placement", async () => {
   await client.from("outfit_items").insert({ outfit_id: outfitId, item_id: id, position: 0, x: 0.25, y: 0.75, scale: 0.4, rotation: -12.5, z_index: 3 });
   const { data: read } = await client.from("outfits").select("mode, occasion, canvas_data, outfit_items(x, y, scale, rotation, z_index)").eq("id", outfitId).single();
   assert.deepEqual(read, { mode: "canvas", occasion: "Work", canvas_data: { version: 1 }, outfit_items: [{ x: 0.25, y: 0.75, scale: 0.4, rotation: -12.5, z_index: 3 }] });
+});
+
+test("date ranges filter inclusively", async () => {
+  await client.from("expenses").insert([
+    { category: "x", amount_chf: 1, date: "2026-01-01" },
+    { category: "x", amount_chf: 2, date: "2026-01-15" },
+    { category: "x", amount_chf: 3, date: "2026-02-01" },
+  ]);
+  const { data } = await client.from("expenses").select("amount_chf").gte("date", "2026-01-15").lte("date", "2026-02-01").order("date");
+  assert.deepEqual(data, [{ amount_chf: 2 }, { amount_chf: 3 }]);
+});
+
+test("wear logs store arrays and weather, and upsert by day", async () => {
+  const id = await item();
+  const weather = { temp: 6, high: 7, low: 5, code: 2, label: "Partly cloudy" };
+  await client.from("wear_logs").upsert({ user_id: LOCAL_USER_ID, date: "2026-03-01", item_ids: [id], weather }, { onConflict: "user_id,date" });
+  await client.from("wear_logs").upsert({ user_id: LOCAL_USER_ID, date: "2026-03-01", item_ids: [] }, { onConflict: "user_id,date" });
+  const { data } = await client.from("wear_logs").select("date, item_ids, weather").eq("date", "2026-03-01").single();
+  assert.deepEqual(data, { date: "2026-03-01", item_ids: [], weather });
+  await client.from("wear_logs").delete().eq("date", "2026-03-01");
 });
 
 test("single and maybeSingle follow Supabase's rules", async () => {

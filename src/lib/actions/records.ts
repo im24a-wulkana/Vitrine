@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getUser } from "@/lib/supabase/server";
 import type { ActionResult } from "@/lib/types";
+import { findCity } from "@/lib/weather";
 
 const blankToNull = (v: unknown) => (typeof v === "string" && v.trim() === "" ? null : v);
 const optionalText = z.preprocess(blankToNull, z.string().trim().max(2000).nullable().optional());
@@ -131,4 +132,47 @@ export async function signOut(): Promise<void> {
   const { supabase } = await getUser();
   await supabase.auth.signOut();
   revalidatePath("/", "layout");
+}
+
+const locationSchema = z.object({
+  city: z.string().trim().max(200).nullable(),
+  lat: z.number().min(-90).max(90),
+  lon: z.number().min(-180).max(180),
+});
+
+export async function setLocation(input: z.input<typeof locationSchema>): Promise<ActionResult> {
+  const parsed = locationSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Invalid location" };
+  const { supabase, user } = await getUser();
+  if (!user) return signedOut;
+  const { error } = await supabase.from("user_settings").upsert({ ...parsed.data, user_id: user.id });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/", "layout");
+  return done;
+}
+
+/** Looks up a city by name, and saves it if found. */
+export async function setCity(name: string): Promise<ActionResult<{ city: string }>> {
+  const query = name.trim();
+  if (!query) return { ok: false, error: "Enter a city" };
+  const place = await findCity(query.slice(0, 100));
+  if (!place) return { ok: false, error: `Couldn't find "${query}"` };
+  const res = await setLocation(place);
+  return res.ok ? { ok: true, data: { city: place.city } } : res;
+}
+
+export async function clearLocation(): Promise<ActionResult> {
+  const { supabase, user } = await getUser();
+  if (!user) return signedOut;
+  const { error } = await supabase.from("user_settings").upsert({ user_id: user.id, city: null, lat: null, lon: null });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/", "layout");
+  return done;
+}
+
+/** Fire and forget from the toggle. The device already shows the new theme. */
+export async function saveTheme(theme: "dark" | "light"): Promise<void> {
+  const { supabase, user } = await getUser();
+  if (!user || (theme !== "dark" && theme !== "light")) return;
+  await supabase.from("user_settings").upsert({ user_id: user.id, theme });
 }

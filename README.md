@@ -101,6 +101,12 @@ Build an outfit in either of two ways, and switch between them at any time:
 
 `react-konva` is pinned to 19.0.10 because newer versions need React 19.2 or later. It can move up when React does.
 
+## Calendar
+
+Each day has one log: an outfit, its pieces, an optional mirror photo, and the weather if it was logged that day. Logging a wear anywhere in the app writes to that day's log, and a database trigger keeps the `wears` table that cost per wear reads in step.
+
+Weather comes from [Open-Meteo](https://open-meteo.com), which needs no key. Your saved coordinates or city name are sent to it from the server, and nothing else.
+
 ## Rules the database enforces
 
 - An item is `sold` only if it has a sale. Record a sale to sell it, and delete the sale to undo that.

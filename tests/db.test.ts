@@ -49,7 +49,7 @@ after(async () => {
 });
 
 beforeEach(async () => {
-  await db.exec(`delete from public.items; delete from public.expenses; delete from public.lots;`);
+  await db.exec(`delete from public.wear_logs; delete from public.items; delete from public.expenses; delete from public.lots;`);
 });
 
 test("new users get settings and default platforms", async () => {
@@ -317,5 +317,79 @@ test("outfits default to slots, reject unknown modes, and need a positive scale"
   assert.equal(o.rows[0].mode, "slots");
   await assert.rejects(db.query(`insert into public.outfits (user_id, name, mode) values ($1, 'x', 'collage')`, [USER_A]));
   await assert.rejects(db.query(`insert into public.outfit_items (outfit_id, item_id, scale) values ($1, $2, 0)`, [o.rows[0].id, id]));
+  await db.exec(`delete from public.outfits`);
+});
+
+const wearDates = async (item: string) =>
+  (await db.query<{ d: string }>(`select worn_on::text as d from public.wears where item_id = $1 order by 1`, [item])).rows.map((r) => r.d);
+
+test("a wear log keeps wears in step, which is what cost per wear reads", async () => {
+  const a = await newItem();
+  const b = await newItem();
+  const log = await db.query<{ id: string }>(`insert into public.wear_logs (user_id, date, item_ids) values ($1, '2026-03-01', $2) returning id`, [USER_A, [a, b]]);
+  assert.deepEqual(await wearDates(a), ["2026-03-01"]);
+  assert.deepEqual(await wearDates(b), ["2026-03-01"]);
+
+  await db.query(`update public.wear_logs set item_ids = $1 where id = $2`, [[a], log.rows[0].id]);
+  assert.deepEqual(await wearDates(b), []);
+
+  await db.query(`update public.wear_logs set date = '2026-03-05' where id = $1`, [log.rows[0].id]);
+  assert.deepEqual(await wearDates(a), ["2026-03-05"]);
+
+  await db.query(`delete from public.wear_logs where id = $1`, [log.rows[0].id]);
+  assert.deepEqual(await wearDates(a), []);
+});
+
+test("there is one log per day, and it drops duplicate ids", async () => {
+  const a = await newItem();
+  await db.query(`insert into public.wear_logs (user_id, date, item_ids) values ($1, '2026-03-01', $2)`, [USER_A, [a, a]]);
+  const r = await db.query<{ item_ids: string[] }>(`select item_ids from public.wear_logs where date = '2026-03-01'`);
+  assert.deepEqual(r.rows[0].item_ids, [a]);
+  await assert.rejects(db.query(`insert into public.wear_logs (user_id, date) values ($1, '2026-03-01')`, [USER_A]));
+});
+
+test("deleting an item leaves other pieces in the log, and removes a log left empty", async () => {
+  const a = await newItem();
+  const b = await newItem();
+  await db.query(`insert into public.wear_logs (user_id, date, item_ids) values ($1, '2026-03-01', $2)`, [USER_A, [a, b]]);
+  await db.query(`insert into public.wear_logs (user_id, date, item_ids, photo_url) values ($1, '2026-03-02', $2, 'p.jpg')`, [USER_A, [a]]);
+  await db.query(`insert into public.wear_logs (user_id, date, item_ids) values ($1, '2026-03-03', $2)`, [USER_A, [a]]);
+  await db.query(`delete from public.items where id = $1`, [a]);
+  const r = await db.query<{ d: string; item_ids: string[] }>(`select date::text as d, item_ids from public.wear_logs order by 1`);
+  assert.deepEqual(r.rows.map((x) => [x.d, x.item_ids]), [["2026-03-01", [b]], ["2026-03-02", []]]);
+});
+
+test("existing wears move into logs, grouped by day and user", async () => {
+  const old = new PGlite();
+  await old.exec(SUPABASE_STUB);
+  const dir = join(process.cwd(), "supabase", "migrations");
+  const files = readdirSync(dir).sort();
+  for (const file of files.filter((f) => f < "0008")) await old.exec(readFileSync(join(dir, file), "utf8"));
+  await old.query(`insert into auth.users (id, email) values ($1, 'a'), ($2, 'b')`, [USER_A, USER_B]);
+  const insert = async (user: string) => (await old.query<{ id: string }>(`insert into public.items (user_id, brand, name) values ($1, 'B', 'N') returning id`, [user])).rows[0].id;
+  const [a, b, c] = [await insert(USER_A), await insert(USER_A), await insert(USER_B)];
+  await old.query(`insert into public.wears (item_id, worn_on) values ($1, '2026-01-01'), ($2, '2026-01-01'), ($1, '2026-01-02'), ($3, '2026-01-01')`, [a, b, c]);
+
+  for (const file of files.filter((f) => f >= "0008")) await old.exec(readFileSync(join(dir, file), "utf8"));
+
+  const logs = await old.query<{ user_id: string; d: string; n: number }>(`select user_id, date::text as d, cardinality(item_ids) as n from public.wear_logs order by user_id, d`);
+  assert.deepEqual(logs.rows.map((l) => [l.user_id, l.d, l.n]), [[USER_A, "2026-01-01", 2], [USER_A, "2026-01-02", 1], [USER_B, "2026-01-01", 1]]);
+  assert.equal((await old.query(`select 1 from public.wears`)).rows.length, 4);
+  await old.close();
+});
+
+test("RLS: logs are private, can't include others' items, and can't point at others' outfits", async () => {
+  const mine = await newItem(USER_A);
+  const theirs = await newItem(USER_B);
+  const theirOutfit = await db.query<{ id: string }>(`insert into public.outfits (user_id, name) values ($1, 'x') returning id`, [USER_B]);
+  await db.query(`insert into public.wear_logs (user_id, date) values ($1, '2026-02-02')`, [USER_B]);
+  await asUser(USER_A, async () => {
+    assert.equal((await db.query(`select 1 from public.wear_logs`)).rows.length, 0);
+    const r = await db.query<{ item_ids: string[] }>(`insert into public.wear_logs (date, item_ids) values ('2026-02-01', $1) returning item_ids`, [[mine, theirs]]);
+    assert.deepEqual(r.rows[0].item_ids, [mine]);
+    await assert.rejects(db.query(`insert into public.wear_logs (date, outfit_id) values ('2026-02-03', $1)`, [theirOutfit.rows[0].id]));
+    await assert.rejects(db.query(`insert into public.wear_logs (user_id, date) values ($1, '2026-02-04')`, [USER_B]));
+  });
+  assert.deepEqual(await wearDates(theirs), []);
   await db.exec(`delete from public.outfits`);
 });
