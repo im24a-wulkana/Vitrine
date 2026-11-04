@@ -131,7 +131,7 @@ export async function seedSampleData(supabase: Client, userId: string): Promise<
     ids.set(item.key, row.id);
 
     check(
-      await supabase.from("item_images").insert({ item_id: row.id, url: `/placeholders/${item.image}.svg`, is_primary: true, position: 0 }),
+      await supabase.from("item_images").insert({ item_id: row.id, url: `/placeholders/${item.image}.svg`, original_url: `/placeholders/${item.image}.svg`, is_primary: true, position: 0 }),
       `Image ${item.key}`,
     );
 

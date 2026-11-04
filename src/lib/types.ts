@@ -37,6 +37,8 @@ export interface ItemImage {
   id: string;
   item_id: string;
   url: string;
+  original_url: string | null;
+  cutout_url: string | null;
   is_primary: boolean;
   position: number;
 }

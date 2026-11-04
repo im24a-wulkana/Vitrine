@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { deleteOutfit, saveOutfit, wearOutfit } from "@/lib/actions/wardrobe";
-import { localDate, primaryImage } from "@/lib/format";
+import { imageFitClass, localDate, primaryImage } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export interface OutfitPiece {
@@ -12,7 +12,7 @@ export interface OutfitPiece {
   brand: string;
   name: string;
   status: string;
-  item_images: { url: string; is_primary: boolean; position: number }[];
+  item_images: { url: string; is_primary: boolean; position: number; cutout_url: string | null }[];
 }
 
 export interface OutfitRow {
@@ -66,7 +66,7 @@ export function OutfitBuilder({ pieces, outfits, startWith }: { pieces: OutfitPi
               const image = primaryImage(byId.get(id)?.item_images);
               return (
                 <li key={id} className="aspect-[3/4] overflow-hidden rounded-lg h-28 shrink-0 bg-muted">
-                  {image && <img src={image} alt={byId.get(id)?.name ?? ""} className="size-full object-cover" />}
+                  {image && <img src={image} alt={byId.get(id)?.name ?? ""} className={`size-full ${imageFitClass(byId.get(id)?.item_images)}`} />}
                 </li>
               );
             })}
@@ -84,7 +84,7 @@ export function OutfitBuilder({ pieces, outfits, startWith }: { pieces: OutfitPi
                 <li key={piece.id}>
                   <button type="button" aria-pressed={order >= 0} className="w-full text-left" onClick={() => togglePiece(piece.id)}>
                     <span className={cn("relative block aspect-[3/4] overflow-hidden rounded-lg bg-muted", order >= 0 && "outline-2 -outline-offset-2 outline-foreground")}>
-                      {image && <img src={image} alt="" loading="lazy" className="size-full object-cover" />}
+                      {image && <img src={image} alt="" loading="lazy" className={`size-full ${imageFitClass(piece.item_images)}`} />}
                       {order >= 0 && <span className="num absolute top-0 left-0 grid size-6 place-items-center bg-foreground text-xs text-background">{order + 1}</span>}
                     </span>
                     <span className="eyebrow mt-1 block truncate">{piece.brand}</span>
@@ -128,7 +128,7 @@ export function OutfitBuilder({ pieces, outfits, startWith }: { pieces: OutfitPi
                     const image = primaryImage(piece?.item_images);
                     return (
                       <div key={item_id} className="aspect-[3/4] overflow-hidden rounded-lg h-40 shrink-0 bg-muted">
-                        {image && <img src={image} alt={piece?.name ?? ""} loading="lazy" className="size-full object-cover" />}
+                        {image && <img src={image} alt={piece?.name ?? ""} loading="lazy" className={`size-full ${imageFitClass(piece?.item_images)}`} />}
                       </div>
                     );
                   })}

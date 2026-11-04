@@ -96,6 +96,13 @@ To install it on a phone, open the deployed site and choose **Add to Home Screen
 - List price changes write to `price_changes` automatically.
 - An item can be logged as worn once per day.
 
+## Photos
+
+Photos are compressed in the browser, then uploaded. The background is removed on your device, using [`@imgly/background-removal`](https://github.com/imgly/background-removal-js), so photos aren't sent anywhere for this. Each photo keeps both versions, and you can switch between them.
+
+- The first cutout downloads a 44 MB AI model from the library's CDN. The browser then caches it.
+- The library is licensed under **AGPL-3.0**. That's fine for personal use, but check its terms before distributing Vitrine or offering it to others as a hosted service.
+
 ## Privacy
 
 Every table uses row level security, and anonymous users have no table access. Photos are in a public-read Storage bucket: each file has an unguessable URL and can't be listed, and only its owner can change or delete it, but anyone who has a photo's URL can open it.

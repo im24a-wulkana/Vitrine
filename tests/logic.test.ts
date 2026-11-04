@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { guessMapping, mapRow, parseAmount, parseCsv, parseDate, toCsv, type ColumnMapping } from "../src/lib/csv";
-import { daysBetween, rankBrands } from "../src/lib/format";
+import { daysBetween, imageFitClass, rankBrands } from "../src/lib/format";
 import { closetTab } from "../src/lib/types";
 import {
   costPerWear, feeFor, groupSales, isUnworn, listingAgeDays, netProfit, profitByMonth,
@@ -202,4 +202,12 @@ test("closetTab maps older and imported category names to a tab", () => {
   assert.equal(closetTab("Bags"), "Accessories");
   assert.equal(closetTab("Something else"), null);
   assert.equal(closetTab(null), null);
+});
+
+test("cutouts display whole; photos fill the frame", () => {
+  const photo = { url: "a.jpg", is_primary: true, position: 0, cutout_url: "a.webp" };
+  assert.equal(imageFitClass([photo]), "object-cover");
+  assert.equal(imageFitClass([{ ...photo, url: "a.webp" }]), "cutout");
+  assert.equal(imageFitClass([{ ...photo, cutout_url: null }]), "object-cover");
+  assert.equal(imageFitClass([]), "object-cover");
 });

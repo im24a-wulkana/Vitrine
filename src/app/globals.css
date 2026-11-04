@@ -211,6 +211,12 @@
     border-color: var(--foreground);
     color: var(--background);
   }
+  /* A garment on a light studio gray. The same in both themes. */
+  .cutout {
+    object-fit: contain;
+    padding: 0.75rem;
+    background: #d4d4d4;
+  }
   .no-scrollbar {
     scrollbar-width: none;
   }

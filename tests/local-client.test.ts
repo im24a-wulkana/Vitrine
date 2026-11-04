@@ -109,6 +109,16 @@ test("offers embed their platform, and a deleted platform leaves the offer in pl
   assert.deepEqual(await read(), [{ amount_chf: 50, status: "pending", platforms: null }]);
 });
 
+test("photos keep both versions, and existing rows can switch between them", async () => {
+  const id = await item();
+  const { data } = await client.from("item_images").insert({ item_id: id, url: "o.jpg", original_url: "o.jpg", is_primary: true }).select().single();
+  const image = data as { id: string; cutout_url: string | null };
+  assert.equal(image.cutout_url, null);
+  await client.from("item_images").update({ cutout_url: "c.webp", url: "c.webp" }).eq("item_id", id).eq("original_url", "o.jpg");
+  const { data: after } = await client.from("item_images").select("url, original_url, cutout_url").eq("id", image.id).single();
+  assert.deepEqual(after, { url: "c.webp", original_url: "o.jpg", cutout_url: "c.webp" });
+});
+
 test("single and maybeSingle follow Supabase's rules", async () => {
   const missing = "00000000-0000-4000-8000-0000000000ff";
   assert.equal((await client.from("items").select("*").eq("id", missing).maybeSingle()).data, null);

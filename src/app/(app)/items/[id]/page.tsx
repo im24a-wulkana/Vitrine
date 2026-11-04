@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ItemActions } from "@/components/item-actions";
 import { WearChart } from "@/components/wear-chart";
-import { daysBetween, localDate, money, shortDate, signedMoney } from "@/lib/format";
+import { daysBetween, imageFitClass, localDate, money, shortDate, signedMoney } from "@/lib/format";
 import { costPerWear } from "@/lib/metrics";
 import { requireUser } from "@/lib/supabase/server";
 import { MEASUREMENTS, STATUS_LABEL, type InventoryItem, type Listing, type Offer, type Platform, type PriceChange } from "@/lib/types";
@@ -63,7 +63,7 @@ export default async function ItemPage({ params }: { params: Promise<{ id: strin
       <section aria-label="Photos" className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-2 overflow-x-auto md:mx-0 md:flex-col md:overflow-visible">
         {images.length === 0 && <div className="eyebrow grid aspect-[3/4] rounded-lg w-full shrink-0 place-items-center bg-muted">No photo</div>}
         {images.map((image) => (
-          <img key={image.id} src={image.url} alt={`${item.brand} ${item.name}`} className="aspect-[3/4] rounded-lg w-[88%] shrink-0 snap-center bg-muted object-cover md:w-full" />
+          <img key={image.id} src={image.url} alt={`${item.brand} ${item.name}`} className={`aspect-[3/4] rounded-lg w-[88%] shrink-0 snap-center bg-muted md:w-full ${imageFitClass([{ ...image, is_primary: true }])}`} />
         ))}
       </section>
 

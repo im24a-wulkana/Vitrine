@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { SoldDialog, type SoldTarget } from "@/components/sold-dialog";
 import { addToOutfit, bulkSetStatus, deleteItems, setFavorite } from "@/lib/actions/items";
 import { logWear } from "@/lib/actions/wardrobe";
-import { daysBetween, localDate, money, primaryImage, signedMoney } from "@/lib/format";
+import { daysBetween, imageFitClass, localDate, money, primaryImage, signedMoney } from "@/lib/format";
 import { costPerWear } from "@/lib/metrics";
 import { closetTab, CLOSET_TABS, ITEM_STATUSES, STATUS_LABEL, type ClosetItem, type ClosetTab, type ItemStatus, type Platform } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -249,7 +249,7 @@ export function ClosetView({ items, platforms, outfits, unwornCount }: { items: 
               <>
                 <div className="relative aspect-[3/4] overflow-hidden rounded-lg bg-muted">
                   {image ? (
-                    <img src={image} alt={`${item.brand} ${item.name}`} loading="lazy" draggable={false} className={cn("size-full object-cover", item.status === "sold" && "opacity-40")} />
+                    <img src={image} alt={`${item.brand} ${item.name}`} loading="lazy" draggable={false} className={cn("size-full", imageFitClass(item.item_images), item.status === "sold" && "opacity-40")} />
                   ) : (
                     <span className="eyebrow grid size-full place-items-center">No photo</span>
                   )}
@@ -355,7 +355,7 @@ export function ClosetView({ items, platforms, outfits, unwornCount }: { items: 
                     <td className="p-2 pl-4 md:pl-2">
                       <Link href={`/items/${item.id}`} className="flex items-center gap-3">
                         <span className="block h-14 w-[42px] shrink-0 overflow-hidden rounded-md bg-muted">
-                          {image && <img src={image} alt="" loading="lazy" className="size-full object-cover" />}
+                          {image && <img src={image} alt="" loading="lazy" className={cn("size-full", imageFitClass(item.item_images))} />}
                         </span>
                         <span className="min-w-0">
                           <span className="eyebrow block">{item.brand}</span>

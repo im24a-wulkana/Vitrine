@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, ImagePlus, Loader2, X } from "lucide-react";
+import { Camera, ImagePlus } from "lucide-react";
+import Link from "next/link";
+import { CutoutProgress, PhotoTile } from "@/components/photo-tile";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,9 +12,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { createItem, updateItem } from "@/lib/actions/items";
 import { localDate, roundMoney } from "@/lib/format";
 import { CATEGORIES, CURRENCIES, MEASUREMENTS, OCCASIONS, SEASONS, type Item, type Measurements, type Platform } from "@/lib/types";
-import { uploadItemPhoto } from "@/lib/upload";
+import { attachPendingCutouts, imagesForSave, usePhotos } from "@/lib/use-photos";
 
-type Photo = { key: string; preview: string; url?: string; failed?: boolean; promise: Promise<string> };
 type AddStatus = "in_stock" | "personal" | "listed";
 
 interface Props {
@@ -27,7 +28,7 @@ export function ItemForm({ brands, platforms, defaultCurrency, item }: Props) {
   const editing = !!item;
   const [itemId, setItemId] = useState(() => item?.id ?? crypto.randomUUID());
 
-  const [photos, setPhotos] = useState<Photo[]>([]);
+  const { photos, add: addPhotos, setView, remove: removePhoto, clear: clearPhotos } = usePhotos();
   const [brand, setBrand] = useState(item?.brand ?? "");
   const [name, setName] = useState(item?.name ?? "");
   const [price, setPrice] = useState(item ? String(item.buy_price) : "");
@@ -101,22 +102,12 @@ export function ItemForm({ brands, platforms, defaultCurrency, item }: Props) {
   }, [price, rate, currency]);
 
   function addFiles(files: FileList | null) {
-    if (!files) return;
-    const next: Photo[] = Array.from(files).map((file) => {
-      const key = crypto.randomUUID();
-      // Upload starts straight away, so Save only waits for whatever is left.
-      const promise = uploadItemPhoto(file, itemId);
-      promise
-        .then((url) => setPhotos((all) => all.map((p) => (p.key === key ? { ...p, url } : p))))
-        .catch(() => setPhotos((all) => all.map((p) => (p.key === key ? { ...p, failed: true } : p))));
-      return { key, preview: URL.createObjectURL(file), promise };
-    });
-    setPhotos((all) => [...all, ...next]);
+    if (files) addPhotos(Array.from(files), () => itemId);
   }
 
   function resetForNext() {
     setItemId(crypto.randomUUID());
-    setPhotos([]);
+    clearPhotos();
     setName("");
     setPrice("");
     setPriceChf("");
@@ -177,9 +168,7 @@ export function ItemForm({ brands, platforms, defaultCurrency, item }: Props) {
         return;
       }
 
-      const settled = await Promise.allSettled(photos.map((p) => p.promise));
-      const images = settled.flatMap((s) => (s.status === "fulfilled" ? [s.value] : []));
-      const failed = settled.length - images.length;
+      const { images, failed } = await imagesForSave(photos);
 
       const res = await createItem({
         ...fields,
@@ -192,6 +181,7 @@ export function ItemForm({ brands, platforms, defaultCurrency, item }: Props) {
             : undefined,
       });
       if (!res.ok) return setError(res.error);
+      attachPendingCutouts(photos);
       if (failed > 0) {
         // The item is saved. Send the user to it so the missing photos can be re-added.
         router.push(`/items/${itemId}/edit?photos_failed=${failed}`);
@@ -223,16 +213,7 @@ export function ItemForm({ brands, platforms, defaultCurrency, item }: Props) {
           {photos.length > 0 && (
             <div className="no-scrollbar -mx-4 mb-2 flex snap-x gap-2 overflow-x-auto px-4">
               {photos.map((p) => (
-                <div key={p.key} className="relative aspect-[3/4] overflow-hidden rounded-lg h-56 shrink-0 snap-start bg-muted">
-                  <img src={p.preview} alt="" className="size-full object-cover" />
-                  {!p.url && !p.failed && (
-                    <span className="absolute inset-0 grid place-items-center bg-background/50"><Loader2 className="size-6 animate-spin" /></span>
-                  )}
-                  {p.failed && <span className="absolute inset-x-0 bottom-0 bg-foreground p-1 text-center text-xs text-background">Upload failed</span>}
-                  <button type="button" aria-label="Remove photo" className="absolute top-1 right-1 grid size-9 place-items-center bg-background" onClick={() => setPhotos((all) => all.filter((x) => x.key !== p.key))}>
-                    <X className="size-4" />
-                  </button>
-                </div>
+                <PhotoTile key={p.key} photo={p} className="h-64 snap-start" onView={(view) => setView(p.key, view)} onRemove={() => removePhoto(p)} />
               ))}
             </div>
           )}
@@ -243,6 +224,10 @@ export function ItemForm({ brands, platforms, defaultCurrency, item }: Props) {
             <Button type="button" size="lg" variant="outline" onClick={() => libraryRef.current?.click()}>
               <ImagePlus /> Library
             </Button>
+          </div>
+          <div className="mt-2 flex flex-col gap-1">
+            <CutoutProgress />
+            <Link href="/items/batch" className="self-start text-sm underline underline-offset-4">Adding several items? Use batch upload</Link>
           </div>
         </section>
       )}

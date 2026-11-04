@@ -68,3 +68,12 @@ export function rankBrands(rows: { brand: string }[]): string[] {
   }
   return [...counts.values()].sort((a, b) => b.count - a.count).map((e) => e.name);
 }
+
+type DisplayImage = { url: string; is_primary: boolean; position: number; cutout_url?: string | null };
+
+/** Cutouts sit whole on a light studio gray, so black garments stay visible in dark mode. Photos fill the frame. */
+export function imageFitClass(images: DisplayImage[] | undefined): string {
+  const url = primaryImage(images);
+  const image = images?.find((i) => i.url === url);
+  return image?.cutout_url && image.cutout_url === url ? "cutout" : "object-cover";
+}

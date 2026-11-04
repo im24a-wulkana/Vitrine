@@ -34,7 +34,10 @@ const itemFields = z.object({
 const createSchema = itemFields.extend({
   id: z.uuid(),
   status: z.enum(["personal", "in_stock", "listed"]),
-  images: z.array(z.string().min(1)).max(12).default([]),
+  images: z
+    .array(z.object({ url: z.string().min(1), original_url: z.string().min(1), cutout_url: z.string().min(1).nullable() }))
+    .max(12)
+    .default([]),
   listing: z.object({ platform: z.string().trim().min(1), list_price: z.number().min(0).nullable() }).optional(),
 });
 
@@ -60,7 +63,7 @@ export async function createItem(input: CreateItemInput): Promise<ActionResult<{
 
   if (images.length) {
     const { error: imageError } = await supabase.from("item_images").insert(
-      images.map((url, position) => ({ item_id: fields.id, url, position, is_primary: position === 0 })),
+      images.map((image, position) => ({ ...image, item_id: fields.id, position, is_primary: position === 0 })),
     );
     if (imageError) return { ok: false, error: imageError.message };
   }
@@ -92,15 +95,22 @@ function storagePath(url: string): string | null {
   return at === -1 ? null : decodeURIComponent(url.slice(at + marker.length));
 }
 
+type ImageFiles = { url: string; original_url: string | null; cutout_url: string | null };
+
+function storagePaths(images: ImageFiles[]): string[] {
+  const urls = images.flatMap((i) => [i.url, i.original_url, i.cutout_url]);
+  return [...new Set(urls)].map((url) => (url ? storagePath(url) : null)).filter((p): p is string => p !== null);
+}
+
 export async function deleteItems(ids: string[]): Promise<ActionResult<{ count: number }>> {
   const { supabase, user } = await getUser();
   if (!user) return { ok: false, error: "Not signed in" };
 
-  const { data: images } = await supabase.from("item_images").select("url").in("item_id", ids);
+  const { data: images } = await supabase.from("item_images").select("url, original_url, cutout_url").in("item_id", ids);
   const { data, error } = await supabase.from("items").delete().in("id", ids).select("id");
   if (error) return { ok: false, error: error.message };
 
-  const paths = (images ?? []).map((i: { url: string }) => storagePath(i.url)).filter((p: string | null): p is string => p !== null);
+  const paths = storagePaths((images ?? []) as ImageFiles[]);
   if (paths.length) await supabase.storage.from("item-images").remove(paths);
 
   revalidatePath("/", "layout");
@@ -137,6 +147,7 @@ export async function addImage(itemId: string, url: string): Promise<ActionResul
   const { error } = await supabase.from("item_images").insert({
     item_id: itemId,
     url,
+    original_url: url,
     position: positions.length ? Math.max(...positions) + 1 : 0,
     is_primary: positions.length === 0,
   });
@@ -151,8 +162,8 @@ export async function removeImage(imageId: string): Promise<ActionResult> {
   const { data: image, error } = await supabase.from("item_images").delete().eq("id", imageId).select().maybeSingle();
   if (error) return { ok: false, error: error.message };
   if (image) {
-    const path = storagePath(image.url);
-    if (path) await supabase.storage.from("item-images").remove([path]);
+    const paths = storagePaths([image as ImageFiles]);
+    if (paths.length) await supabase.storage.from("item-images").remove(paths);
     if (image.is_primary) {
       const { data: next } = await supabase
         .from("item_images")
@@ -205,4 +216,45 @@ export async function addToOutfit(outfitId: string, itemId: string): Promise<Act
   if (error) return { ok: false, error: error.message };
   revalidatePath("/outfits");
   return { ok: true, data: undefined };
+}
+
+/** Adds a finished cutout to a saved photo. It goes on display unless the user chose the original. */
+export async function attachCutout(itemId: string, originalUrl: string, cutoutUrl: string, display: boolean): Promise<ActionResult> {
+  const { supabase, user } = await getUser();
+  if (!user) return { ok: false, error: "Not signed in" };
+  const { data, error } = await supabase
+    .from("item_images")
+    .update({ cutout_url: cutoutUrl, ...(display ? { url: cutoutUrl } : {}) })
+    .eq("item_id", itemId)
+    .eq("original_url", originalUrl)
+    .select("id");
+  if (error) return { ok: false, error: error.message };
+  if (!data?.length) {
+    // The photo was deleted while its cutout was being made.
+    const path = storagePath(cutoutUrl);
+    if (path) await supabase.storage.from("item-images").remove([path]);
+  }
+  revalidatePath("/", "layout");
+  return { ok: true, data: undefined };
+}
+
+export async function setImageVersion(imageId: string, version: "original" | "cutout"): Promise<ActionResult> {
+  const { supabase, user } = await getUser();
+  if (!user) return { ok: false, error: "Not signed in" };
+  const { data: image, error: readError } = await supabase.from("item_images").select("original_url, cutout_url").eq("id", imageId).maybeSingle();
+  if (readError) return { ok: false, error: readError.message };
+  const url = version === "cutout" ? image?.cutout_url : image?.original_url;
+  if (!url) return { ok: false, error: "That version isn't available" };
+  const { error } = await supabase.from("item_images").update({ url }).eq("id", imageId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/", "layout");
+  return { ok: true, data: undefined };
+}
+
+/** Removes files for a photo taken off a form before the item was saved. */
+export async function discardUploads(urls: string[]): Promise<void> {
+  const { supabase, user } = await getUser();
+  if (!user) return;
+  const paths = urls.map(storagePath).filter((p): p is string => p !== null);
+  if (paths.length) await supabase.storage.from("item-images").remove(paths);
 }

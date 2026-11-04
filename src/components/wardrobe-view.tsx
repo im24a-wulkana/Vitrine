@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { bulkSetStatus } from "@/lib/actions/items";
 import { logWear } from "@/lib/actions/wardrobe";
-import { localDate, money, primaryImage, shortDate } from "@/lib/format";
+import { imageFitClass, localDate, money, primaryImage, shortDate } from "@/lib/format";
 import { costPerWear, isUnworn } from "@/lib/metrics";
 
 export interface WardrobeItem {
@@ -15,7 +15,7 @@ export interface WardrobeItem {
   buy_price_chf: number;
   buy_date: string | null;
   created_at: string;
-  item_images: { url: string; is_primary: boolean; position: number }[];
+  item_images: { url: string; is_primary: boolean; position: number; cutout_url: string | null }[];
   wears: { worn_on: string }[];
 }
 
@@ -102,7 +102,7 @@ export function WardrobeView({ items }: { items: WardrobeItem[] }) {
               <li key={item.id} className="flex min-w-0 flex-col">
                 <Link href={`/items/${item.id}`}>
                   <div className="aspect-[3/4] overflow-hidden rounded-lg bg-muted">
-                    {image ? <img src={image} alt={`${item.brand} ${item.name}`} loading="lazy" className="size-full object-cover" /> : <span className="eyebrow grid size-full place-items-center">No photo</span>}
+                    {image ? <img src={image} alt={`${item.brand} ${item.name}`} loading="lazy" className={`size-full ${imageFitClass(item.item_images)}`} /> : <span className="eyebrow grid size-full place-items-center">No photo</span>}
                   </div>
                   <p className="eyebrow mt-2 truncate">{item.brand}</p>
                   <p className="truncate text-sm">{item.name}</p>
