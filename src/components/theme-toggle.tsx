@@ -15,7 +15,7 @@ export function ThemeToggle() {
     setDark(next);
     document.documentElement.classList.toggle("dark", next);
     window.localStorage.setItem("vitrine.theme", next ? "dark" : "light");
-    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", next ? "#050505" : "#f4f3ef");
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", next ? "#050505" : "#f5f5f5");
   }
 
   return (

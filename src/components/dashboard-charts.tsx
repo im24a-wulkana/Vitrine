@@ -6,7 +6,7 @@ import type { GroupPoint, MonthPoint } from "@/lib/metrics";
 
 const INK = "var(--foreground)";
 const LOSS = "#808080"; // Losses also sit below the zero line, so this is never color alone.
-const AXIS = "#8a8a88";
+const AXIS = "#8a8a8a";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const monthLabel = (key: string) => MONTHS[Number(key.slice(5, 7)) - 1];

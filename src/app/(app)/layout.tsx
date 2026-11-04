@@ -3,6 +3,10 @@ import { localDate } from "@/lib/format";
 import { getAgingAlerts, getSettings } from "@/lib/queries";
 import { requireUser } from "@/lib/supabase/server";
 
+// Always render per request. In local mode nothing reads cookies, so Next would
+// otherwise prerender these pages at build time and serve stale data.
+export const dynamic = "force-dynamic";
+
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { supabase, user } = await requireUser();
   const settings = await getSettings(supabase, user.id);

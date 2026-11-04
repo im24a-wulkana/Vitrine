@@ -11,8 +11,8 @@ const svg = (size, inset) => {
   return Buffer.from(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}">
       <rect width="${size}" height="${size}" fill="#050505"/>
-      <rect x="${p}" y="${p}" width="${size - 2 * p}" height="${size - 2 * p}" fill="none" stroke="#f2f2f0" stroke-width="${stroke}"/>
-      <path d="M${p + size * 0.1} ${p + size * 0.1} L${size / 2} ${size - p - size * 0.1} L${size - p - size * 0.1} ${p + size * 0.1}" fill="none" stroke="#f2f2f0" stroke-width="${stroke}"/>
+      <rect x="${p}" y="${p}" width="${size - 2 * p}" height="${size - 2 * p}" fill="none" stroke="#f2f2f2" stroke-width="${stroke}"/>
+      <path d="M${p + size * 0.1} ${p + size * 0.1} L${size / 2} ${size - p - size * 0.1} L${size - p - size * 0.1} ${p + size * 0.1}" fill="none" stroke="#f2f2f2" stroke-width="${stroke}"/>
     </svg>`,
   );
 };
