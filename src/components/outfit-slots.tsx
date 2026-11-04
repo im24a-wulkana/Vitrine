@@ -33,7 +33,7 @@ function SlotRow({ slot, pieces, selectedId, onPick }: { slot: Slot; pieces: Out
   return (
     <section aria-roledescription="carousel" aria-label={slot}>
       <div className="mb-1 flex items-center justify-between gap-2">
-        <h3 className="eyebrow">{slot}</h3>
+        <h2 className="eyebrow">{slot}</h2>
         <p className="min-w-0 truncate text-xs text-muted-foreground" aria-live="polite">{selected ? `${selected.brand} · ${selected.name}` : "None"}</p>
       </div>
       <div className="relative">

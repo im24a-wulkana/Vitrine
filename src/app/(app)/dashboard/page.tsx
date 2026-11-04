@@ -57,9 +57,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     <div className="flex flex-col gap-10">
       <header className="flex flex-col gap-4">
         <h1 className="page-title">Business</h1>
-        <nav aria-label="Business pages" className="no-scrollbar -mx-4 flex gap-4 overflow-x-auto border-b px-4 pb-2.5 text-sm md:hidden">
+        <nav aria-label="Business pages" className="no-scrollbar -mx-4 flex gap-4 overflow-x-auto border-b px-4 pb-1 text-sm md:hidden">
           {BUSINESS_LINKS.map((l) => (
-            <Link key={l.href} href={l.href} className="whitespace-nowrap text-muted-foreground">
+            <Link key={l.href} href={l.href} className="py-2 whitespace-nowrap text-muted-foreground">
               {l.label}
               {l.href === "/alerts" && alerts.length > 0 && <span className="num ml-1 rounded-sm bg-foreground px-1 text-[10px] text-background">{alerts.length}</span>}
             </Link>
@@ -96,7 +96,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             <h2 className="eyebrow">Goal this month</h2>
             <p className="num text-sm">{signedMoney(monthNet)} <span className="text-muted-foreground">/ {moneyWhole(goal)}</span></p>
           </div>
-          <div role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(Math.min(1, Math.max(0, monthNet / goal)) * 100)} className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+          <div role="progressbar" aria-label="Progress toward this month's profit goal" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(Math.min(1, Math.max(0, monthNet / goal)) * 100)} className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
             <div className="h-full bg-foreground" style={{ width: `${Math.min(1, Math.max(0, monthNet / goal)) * 100}%` }} />
           </div>
           <p className="mt-1 text-xs text-muted-foreground">{monthNet >= goal ? "Reached." : <><span className="num">{money(goal - monthNet)}</span> to go.</>}</p>
@@ -120,12 +120,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           <ul>
             {alerts.slice(0, 3).map((a) => (
               <li key={a.listing_id} className="flex items-center justify-between gap-3 border-b py-2 text-sm">
-                <Link href={`/items/${a.item_id}`} className="min-w-0 truncate">{a.brand} · {a.name}</Link>
+                <Link href={`/items/${a.item_id}`} className="min-w-0 truncate py-1">{a.brand} · {a.name}</Link>
                 <span className="num shrink-0 text-muted-foreground">{a.age_days}d</span>
               </li>
             ))}
           </ul>
-          <Link href="/alerts" className="mt-2 inline-block text-sm underline underline-offset-4">
+          <Link href="/alerts" className="mt-1 inline-block py-1.5 text-sm underline underline-offset-4">
             Review {alerts.length} {alerts.length === 1 ? "listing" : "listings"}
           </Link>
         </section>

@@ -54,13 +54,13 @@ function SaleRow({ sale }: { sale: ShippingSale }) {
 
   return (
     <li className="flex gap-3 border-b py-3">
-      <Link href={`/items/${sale.item_id}`} className="block h-24 w-[4.5rem] shrink-0 overflow-hidden rounded-md bg-muted">
+      <Link href={`/items/${sale.item_id}`} aria-label={sale.items.name} className="block h-24 w-[4.5rem] shrink-0 overflow-hidden rounded-md bg-muted">
         {image && <img src={image} alt="" loading="lazy" className={`size-full ${imageFitClass(sale.items.item_images)}`} />}
       </Link>
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <div>
           <p className="eyebrow truncate">{sale.items.brand} · {sale.platform}</p>
-          <Link href={`/items/${sale.item_id}`} className="block truncate text-sm">{sale.items.name}</Link>
+          <Link href={`/items/${sale.item_id}`} className="block truncate py-1 text-sm">{sale.items.name}</Link>
           <p className="num text-xs text-muted-foreground">Sold {shortDate(sale.sold_at)}</p>
         </div>
         <form

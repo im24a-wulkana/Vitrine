@@ -73,7 +73,7 @@ Open http://localhost:3000 and sign in with your seed account.
 ## Deploy to Vercel
 
 1. Push the repository to GitHub and import it in Vercel.
-2. Add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Do not add the service role key.
+2. Add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Only add the service role key if you use scheduled notifications, and never with a `NEXT_PUBLIC_` prefix.
 3. In Supabase, under Authentication > URL Configuration, set the Site URL to your Vercel domain and add `https://your-domain/auth/callback` as a redirect URL.
 
 To install it on a phone, open the deployed site and choose **Add to Home Screen**.
@@ -115,6 +115,20 @@ Add `ANTHROPIC_API_KEY` to `.env.local` to turn on two features. Everything else
 - **Generate outfit:** sends your personal items' tags, the weather, and your chosen occasion and anchor piece. It returns item ids and a short reason, and the ids are checked against your items before use.
 
 Without a key, colours still come from the photo itself, using `node-vibrant` on the device. To add another provider, implement `VisionProvider` and `LLMProvider` in `src/lib/ai/providers.ts`.
+
+## Notifications
+
+Web Push covers aging listings (at most weekly), sales waiting to ship (at most daily) and reaching your monthly profit goal (once a month).
+
+1. Generate keys with `npx web-push generate-vapid-keys`, and add them to `.env.local` with `VAPID_SUBJECT`.
+2. Run a production build (`npm run build`, then `npm run start`). Service workers are off under `npm run dev`.
+3. Turn notifications on in **Settings**, on each device. On an iPhone, add Vitrine to your Home Screen first.
+
+In local mode, **Check now** in Settings sends what's due. On Vercel, `vercel.json` runs the check daily. That needs `CRON_SECRET` and `SUPABASE_SERVICE_ROLE_KEY` set in Vercel, because the job reads every account's data on the server. It's the only place the app uses that key.
+
+## Backup
+
+**Import and export** has a full JSON backup of your account. Photos are included as links, not files, so keep those separately. There's no restore screen yet.
 
 ## Rules the database enforces
 

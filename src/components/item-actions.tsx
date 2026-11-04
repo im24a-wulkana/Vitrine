@@ -143,7 +143,7 @@ export function ItemActions({ item, listings, platforms, comps }: Props) {
       )}
 
       <div className="flex items-center justify-between gap-4 text-sm">
-        <Link href={`/items/${item.id}/edit`} className="underline underline-offset-4">Edit details and photos</Link>
+        <Link href={`/items/${item.id}/edit`} className="py-1.5 underline underline-offset-4">Edit details and photos</Link>
         {confirmDelete ? (
           <span className="flex items-center gap-3">
             <button type="button" className="font-medium underline underline-offset-4" disabled={pending} onClick={() => run(() => deleteItems([item.id]), () => router.push("/closet"))}>
@@ -152,7 +152,7 @@ export function ItemActions({ item, listings, platforms, comps }: Props) {
             <button type="button" className="text-muted-foreground" onClick={() => setConfirmDelete(false)}>Cancel</button>
           </span>
         ) : (
-          <button type="button" className="text-muted-foreground underline underline-offset-4" onClick={() => setConfirmDelete(true)}>Delete</button>
+          <button type="button" className="py-1.5 text-muted-foreground underline underline-offset-4" onClick={() => setConfirmDelete(true)}>Delete</button>
         )}
       </div>
 

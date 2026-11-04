@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   // The embedded local database ships a WASM binary, which must not be bundled.
-  serverExternalPackages: ["@electric-sql/pglite"],
+  serverExternalPackages: ["@electric-sql/pglite", "web-push"],
   async redirects() {
     return [
       { source: "/inventory", destination: "/closet", permanent: false },

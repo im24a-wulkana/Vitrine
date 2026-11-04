@@ -204,14 +204,14 @@ export function ClosetView({ items, platforms, outfits, unwornCount }: { items: 
 
       <nav aria-label="Categories" className="no-scrollbar -mx-4 flex gap-5 overflow-x-auto border-b px-4 md:mx-0 md:px-0">
         {CLOSET_TABS.map((t) => (
-          <button key={t} type="button" aria-pressed={tab === t} onClick={() => setTab(t)} className={cn("eyebrow -mb-px border-b-2 border-transparent py-2.5 whitespace-nowrap", tab === t && "border-foreground text-foreground")}>
+          <button key={t} type="button" aria-pressed={tab === t} onClick={() => setTab(t)} className={cn("eyebrow -mb-px min-w-11 border-b-2 border-transparent py-2.5 whitespace-nowrap", tab === t && "border-foreground text-foreground")}>
             {t}
           </button>
         ))}
       </nav>
 
       {unwornCount > 0 && (
-        <Link href="/wardrobe" className="flex items-center justify-between rounded-lg bg-muted px-3 py-2.5 text-sm">
+        <Link href="/insights" className="flex items-center justify-between rounded-lg bg-muted px-3 py-2.5 text-sm">
           <span><span className="num">{unwornCount}</span> not worn in 6+ months. Sell?</span>
           <span className="underline underline-offset-4">Review</span>
         </Link>
@@ -349,7 +349,7 @@ export function ClosetView({ items, platforms, outfits, unwornCount }: { items: 
                   <tr key={item.id} className="border-b">
                     {selecting && (
                       <td className="p-2">
-                        <input type="checkbox" className="size-5 accent-foreground" aria-label={`Select ${item.name}`} checked={selected.has(item.id)} onChange={() => toggle(item.id)} />
+                        <input type="checkbox" className="size-6 accent-foreground" aria-label={`Select ${item.name}`} checked={selected.has(item.id)} onChange={() => toggle(item.id)} />
                       </td>
                     )}
                     <td className="p-2 pl-4 md:pl-2">
@@ -385,7 +385,7 @@ export function ClosetView({ items, platforms, outfits, unwornCount }: { items: 
           <div className="mx-auto flex max-w-6xl flex-col gap-2">
             <div className="flex items-center justify-between text-sm">
               <span className="num">{selected.size} selected</span>
-              <button type="button" className="underline underline-offset-4" onClick={() => setSelected(new Set(visible.map((i) => i.id)))}>Select all {visible.length}</button>
+              <button type="button" className="py-1 underline underline-offset-4" onClick={() => setSelected(new Set(visible.map((i) => i.id)))}>Select all {visible.length}</button>
             </div>
             {confirmingDelete ? (
               <div className="grid grid-cols-2 gap-2">
@@ -412,7 +412,7 @@ export function ClosetView({ items, platforms, outfits, unwornCount }: { items: 
             <DialogDescription className="num">{visible.length} of {items.length} items</DialogDescription>
           </DialogHeader>
           <div className="flex max-h-[65dvh] flex-col gap-5 overflow-y-auto">
-            <button type="button" className="chip self-start" data-active={filters.favorites} aria-pressed={filters.favorites} onClick={() => setFilters((f) => ({ ...f, favorites: !f.favorites }))}>
+            <button type="button" className="chip shrink-0 self-start" data-active={filters.favorites} aria-pressed={filters.favorites} onClick={() => setFilters((f) => ({ ...f, favorites: !f.favorites }))}>
               <Heart className="mr-1.5 size-3.5" /> Favorites
             </button>
             {([["status", "Status"], ["season", "Season"], ["occasion", "Occasion"], ["color", "Color"], ["brand", "Brand"], ["size", "Size"], ["tag", "Tags"]] as const).map(([key, label]) =>

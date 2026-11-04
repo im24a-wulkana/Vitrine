@@ -12,7 +12,7 @@ const TABS = [
   { href: "/outfits", label: "Outfits", icon: Layers },
   { href: "/items/new", label: "Add", icon: Plus, primary: true },
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
-  { href: "/dashboard", label: "Business", icon: BriefcaseBusiness, also: ["/shipping", "/alerts", "/lots", "/calculator", "/expenses", "/wishlist", "/import", "/settings"] },
+  { href: "/dashboard", label: "Business", icon: BriefcaseBusiness, also: ["/insights", "/shipping", "/alerts", "/lots", "/calculator", "/expenses", "/wishlist", "/import", "/settings"] },
 ];
 
 export function Nav({ alertCount }: { alertCount: number }) {

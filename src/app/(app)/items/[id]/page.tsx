@@ -151,7 +151,7 @@ export default async function ItemPage({ params }: { params: Promise<{ id: strin
           </section>
         )}
 
-        <Link href="/closet" className="text-sm underline underline-offset-4">Back to closet</Link>
+        <Link href="/closet" className="self-start py-1.5 text-sm underline underline-offset-4">Back to closet</Link>
       </div>
     </div>
   );

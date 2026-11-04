@@ -88,7 +88,7 @@ export function OutfitBuilder({ pieces, outfits, startWith, aiEnabled = false }:
                 {outfit.mode === "canvas" ? (
                   <CanvasPreview items={outfit.outfit_items} pieceFor={(id) => byId.get(id)} className="h-72 max-w-full rounded-lg" />
                 ) : (
-                  <div className="no-scrollbar -mx-4 flex gap-1 overflow-x-auto px-4 md:mx-0 md:px-0">
+                  <div tabIndex={0} role="group" aria-label={`Pieces in ${outfit.name}`} className="no-scrollbar -mx-4 flex gap-1 overflow-x-auto px-4 md:mx-0 md:px-0">
                     {inOrder.map(({ item_id }) => {
                       const piece = byId.get(item_id);
                       const image = primaryImage(piece?.item_images);

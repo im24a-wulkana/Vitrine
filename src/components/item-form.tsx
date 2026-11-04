@@ -333,10 +333,10 @@ export function ItemForm({ brands, platforms, defaultCurrency, item, comps = [],
             {aiState === "loading" && <p role="status" className="text-xs text-muted-foreground">Getting AI suggestions…</p>}
             {aiState === "failed" && <p role="status" className="text-xs text-muted-foreground">{aiMessage} You can fill this in yourself.</p>}
             {aiState === "ready" && !aiSheetOpen && (
-              <button type="button" className="self-start text-sm underline underline-offset-4" onClick={() => setAiSheetOpen(true)}>Review AI suggestions</button>
+              <button type="button" className="self-start py-1 text-sm underline underline-offset-4" onClick={() => setAiSheetOpen(true)}>Review AI suggestions</button>
             )}
             {!aiEnabled && photos.length > 0 && <p className="text-xs text-muted-foreground">AI tagging is off. Add ANTHROPIC_API_KEY to turn it on.</p>}
-            <Link href="/items/batch" className="self-start text-sm underline underline-offset-4">Adding several items? Use batch upload</Link>
+            <Link href="/items/batch" className="self-start py-1 text-sm underline underline-offset-4">Adding several items? Use batch upload</Link>
           </div>
         </section>
       )}
@@ -431,7 +431,7 @@ export function ItemForm({ brands, platforms, defaultCurrency, item, comps = [],
       </div>
 
       {!showMore ? (
-        <button type="button" className="self-start text-sm underline underline-offset-4" onClick={() => setShowMore(true)}>
+        <button type="button" className="self-start py-1 text-sm underline underline-offset-4" onClick={() => setShowMore(true)}>
           More details
         </button>
       ) : (

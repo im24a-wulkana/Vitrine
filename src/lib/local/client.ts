@@ -38,7 +38,7 @@ const RELATIONS: Record<string, Record<string, Relation>> = {
 const PRIMARY_KEY: Record<string, string> = { user_settings: "user_id" };
 
 function ident(name: string): string {
-  if (!/^[a-z_]+$/.test(name)) throw new Error(`Unexpected identifier: ${name}`);
+  if (!/^[a-z_][a-z0-9_]*$/.test(name)) throw new Error(`Unexpected identifier: ${name}`);
   return `"${name}"`;
 }
 

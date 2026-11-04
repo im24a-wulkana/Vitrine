@@ -14,12 +14,12 @@ export function AlertRow({ alert }: { alert: AgingAlert }) {
 
   return (
     <li className="flex gap-3 border-b py-3">
-      <Link href={`/items/${alert.item_id}`} className="block h-24 w-20 shrink-0 bg-muted">
+      <Link href={`/items/${alert.item_id}`} aria-label={alert.name} className="block h-24 w-20 shrink-0 bg-muted">
         {alert.image && <img src={alert.image} alt="" loading="lazy" className="size-full object-cover" />}
       </Link>
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <p className="eyebrow truncate">{alert.brand} · {alert.platform}</p>
-        <Link href={`/items/${alert.item_id}`} className="truncate text-sm">{alert.name}</Link>
+        <Link href={`/items/${alert.item_id}`} className="truncate py-1 text-sm">{alert.name}</Link>
         <p className="num text-sm">
           <span className="text-muted-foreground">{alert.age_days}d</span>
           {alert.list_price !== null && <> · {money(alert.list_price)}</>}

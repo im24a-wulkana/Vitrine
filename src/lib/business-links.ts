@@ -1,4 +1,5 @@
 export const BUSINESS_LINKS = [
+  { href: "/insights", label: "Insights" },
   { href: "/shipping", label: "Shipping" },
   { href: "/alerts", label: "Aging" },
   { href: "/lots", label: "Lots" },

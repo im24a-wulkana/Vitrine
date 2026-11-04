@@ -18,6 +18,8 @@ export default function ImportPage() {
           <a className="chip justify-center" href="/export/sales" download>Sales</a>
           <a className="chip justify-center" href="/export/expenses" download>Expenses</a>
         </div>
+        <a className="chip justify-center text-sm" href="/export/backup" download>Full backup (JSON)</a>
+        <p className="text-xs text-muted-foreground">Everything in your account, except the photo files themselves.</p>
         <h3 className="mt-2 text-sm font-medium">Yearly summary</h3>
         <ul className="flex flex-wrap gap-2">
           {years.map((y) => (

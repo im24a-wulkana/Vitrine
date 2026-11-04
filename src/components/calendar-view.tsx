@@ -12,7 +12,6 @@ import { discardUploads } from "@/lib/actions/items";
 import { setLocation } from "@/lib/actions/records";
 import { deleteWearLog, saveWearLog } from "@/lib/actions/wardrobe";
 import { imageFitClass, localDate, primaryImage, shortDate } from "@/lib/format";
-import { compressPhoto } from "@/lib/image-pipeline";
 import type { Placement } from "@/lib/outfits";
 import { uploadPhotoBlob } from "@/lib/upload";
 import { cn } from "@/lib/utils";
@@ -148,6 +147,8 @@ function LogSheet({ date, log, today, weather, pieces, outfits, onClose }: Sheet
     setError(null);
     setUploading(true);
     try {
+      // Loaded on demand: the calendar shouldn't pay for this until someone adds a photo.
+      const { compressPhoto } = await import("@/lib/image-pipeline");
       setPhotoUrl(await uploadPhotoBlob(await compressPhoto(file), "wear-logs"));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Upload failed");
@@ -317,9 +318,10 @@ export function CalendarView({ month, today: serverToday, logs, pieces, outfits,
             {...rest}
             type="button"
             aria-label={log ? `${name}, logged` : name}
-            className={cn(className, "relative block aspect-[3/4] w-full overflow-hidden rounded-md text-left", log ? "bg-muted" : "border border-border/60", (modifiers.outside || modifiers.disabled) && "opacity-30")}
+            className={cn(className, "relative block aspect-[3/4] w-full overflow-hidden rounded-md text-left", log ? "bg-muted" : "border border-border/60", modifiers.disabled && "opacity-30")}
           >
-            {log && <Thumb log={log} pieceById={pieceById} outfitById={outfitById} />}
+            {/* Only the picture dims on neighbouring months, so the day number stays readable. */}
+            {log && <span className={cn("block size-full", modifiers.outside && "opacity-40")}><Thumb log={log} pieceById={pieceById} outfitById={outfitById} /></span>}
             <span className={cn("num absolute top-0.5 left-0.5 rounded-sm px-1 text-[10px] leading-tight", modifiers.today ? "bg-foreground font-semibold text-background" : log ? "bg-background/85" : "text-muted-foreground")}>
               {day.date.getDate()}
             </span>

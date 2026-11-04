@@ -59,7 +59,7 @@ export function LotDetail({ lot, candidates }: { lot: LotDetailData; candidates:
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-8">
       <div>
-        <p className="eyebrow"><Link href="/lots">Lots</Link></p>
+        <p className="eyebrow"><Link href="/lots" className="inline-block py-1.5">Lots</Link></p>
         <h1 className="page-title mt-2">{lot.name}</h1>
       </div>
 
@@ -90,7 +90,7 @@ export function LotDetail({ lot, candidates }: { lot: LotDetailData; candidates:
             const image = primaryImage(item.item_images);
             return (
               <li key={item.id} className="flex items-center gap-3 border-b py-2">
-                <Link href={`/items/${item.id}`} className="block h-14 w-[42px] shrink-0 overflow-hidden rounded-md bg-muted">
+                <Link href={`/items/${item.id}`} aria-label={item.name} className="block h-14 w-[42px] shrink-0 overflow-hidden rounded-md bg-muted">
                   {image && <img src={image} alt="" loading="lazy" className={`size-full ${imageFitClass(item.item_images)}`} />}
                 </Link>
                 <Link href={`/items/${item.id}`} className="min-w-0 flex-1">
@@ -195,7 +195,7 @@ export function LotDetail({ lot, candidates }: { lot: LotDetailData; candidates:
             <button type="button" className="text-muted-foreground" onClick={() => setConfirmDelete(false)}>Cancel</button>
           </span>
         ) : (
-          <button type="button" className="text-muted-foreground underline underline-offset-4" onClick={() => setConfirmDelete(true)}>Delete lot</button>
+          <button type="button" className="py-1.5 text-muted-foreground underline underline-offset-4" onClick={() => setConfirmDelete(true)}>Delete lot</button>
         )}
       </div>
     </div>

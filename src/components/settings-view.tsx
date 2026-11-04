@@ -6,6 +6,7 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PushSettings } from "@/components/push-settings";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { resetLocalData } from "@/lib/actions/local";
 import { clearLocation, deletePlatform, savePlatform, saveSettings, setCity, signOut } from "@/lib/actions/records";
@@ -134,7 +135,7 @@ function LocationSettings({ city, hasLocation }: { city: string | null; hasLocat
       {hasLocation && (
         <button
           type="button"
-          className="self-start text-sm text-muted-foreground underline underline-offset-4"
+          className="self-start py-1 text-sm text-muted-foreground underline underline-offset-4"
           onClick={() =>
             start(async () => {
               const res = await clearLocation();
@@ -151,7 +152,7 @@ function LocationSettings({ city, hasLocation }: { city: string | null; hasLocat
   );
 }
 
-export function SettingsView({ settings, platforms, email }: { settings: UserSettings; platforms: Platform[]; email: string }) {
+export function SettingsView({ settings, platforms, email, pushConfigured }: { settings: UserSettings; platforms: Platform[]; email: string; pushConfigured: boolean }) {
   const router = useRouter();
   const [currency, setCurrency] = useState(settings.default_currency);
   const [days, setDays] = useState(String(settings.aging_threshold_days));
@@ -198,6 +199,8 @@ export function SettingsView({ settings, platforms, email }: { settings: UserSet
         {message && <p role="status" className="text-sm">{message}</p>}
         <Button type="submit" disabled={pending}>{pending ? "Saving…" : "Save settings"}</Button>
       </form>
+
+      <PushSettings configured={pushConfigured} />
 
       <LocationSettings city={settings.city} hasLocation={settings.lat !== null} />
 
