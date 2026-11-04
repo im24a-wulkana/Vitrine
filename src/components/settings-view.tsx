@@ -6,6 +6,7 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { resetLocalData } from "@/lib/actions/local";
 import { deletePlatform, savePlatform, saveSettings, signOut } from "@/lib/actions/records";
 import { isLocalMode } from "@/lib/mode";
@@ -37,8 +38,8 @@ function PlatformRow({ platform }: { platform?: Platform }) {
 
   return (
     <li className="border-b py-3">
-      <form onSubmit={submit} className="grid grid-cols-[1fr_4.5rem_4.5rem] items-end gap-2">
-        <div className="col-span-3 flex items-center gap-2 md:col-span-1">
+      <form onSubmit={submit} className="grid grid-cols-[minmax(0,1fr)_4.5rem_4.5rem_auto] items-end gap-2">
+        <div className="col-span-4 flex items-center gap-2 md:col-span-1">
           <Input aria-label="Platform name" placeholder={platform ? undefined : "New platform"} value={name} onChange={(e) => setName(e.target.value)} />
           {platform && (
             <button type="button" aria-label={`Delete ${platform.name}`} disabled={pending} className="grid size-11 shrink-0 place-items-center text-muted-foreground" onClick={() => start(async () => {
@@ -57,7 +58,7 @@ function PlatformRow({ platform }: { platform?: Platform }) {
           <span className="eyebrow">Fixed</span>
           <Input aria-label="Fixed fee" inputMode="decimal" className="num px-2" value={fixed} onChange={(e) => setFixed(e.target.value.replace(",", "."))} />
         </div>
-        <Button type="submit" variant="outline" disabled={pending} className="max-md:col-span-1">
+        <Button type="submit" variant="outline" disabled={pending} className="max-md:col-span-2">
           {platform ? (saved ? "Saved" : "Save") : "Add"}
         </Button>
       </form>
@@ -124,7 +125,7 @@ export function SettingsView({ settings, platforms, email }: { settings: UserSet
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-10">
-      <h1 className="page-title">Settings</h1>
+      <div className="flex items-end justify-between gap-4"><h1 className="page-title">Settings</h1><span className="md:hidden"><ThemeToggle /></span></div>
 
       <form onSubmit={submit} className="flex flex-col gap-4">
         <div className="grid grid-cols-3 gap-2">

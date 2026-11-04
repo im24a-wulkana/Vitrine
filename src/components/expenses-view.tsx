@@ -68,7 +68,7 @@ export function ExpensesView({ expenses }: { expenses: Expense[] }) {
       </form>
 
       {expenses.length === 0 ? (
-        <p className="text-muted-foreground">No expenses yet. They are subtracted from your profit on the Numbers page.</p>
+        <p className="text-muted-foreground">No expenses yet. They are subtracted from your profit on the Business page.</p>
       ) : (
         <ul>
           {expenses.map((expense) => (

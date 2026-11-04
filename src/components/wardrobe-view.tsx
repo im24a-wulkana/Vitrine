@@ -101,7 +101,7 @@ export function WardrobeView({ items }: { items: WardrobeItem[] }) {
             return (
               <li key={item.id} className="flex min-w-0 flex-col">
                 <Link href={`/items/${item.id}`}>
-                  <div className="aspect-[4/5] bg-muted">
+                  <div className="aspect-[3/4] overflow-hidden rounded-lg bg-muted">
                     {image ? <img src={image} alt={`${item.brand} ${item.name}`} loading="lazy" className="size-full object-cover" /> : <span className="eyebrow grid size-full place-items-center">No photo</span>}
                   </div>
                   <p className="eyebrow mt-2 truncate">{item.brand}</p>

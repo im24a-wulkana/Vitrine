@@ -141,7 +141,7 @@ export function ItemActions({ item, listings, platforms }: Props) {
         <Link href={`/items/${item.id}/edit`} className="underline underline-offset-4">Edit details and photos</Link>
         {confirmDelete ? (
           <span className="flex items-center gap-3">
-            <button type="button" className="font-medium underline underline-offset-4" disabled={pending} onClick={() => run(() => deleteItems([item.id]), () => router.push("/inventory"))}>
+            <button type="button" className="font-medium underline underline-offset-4" disabled={pending} onClick={() => run(() => deleteItems([item.id]), () => router.push("/closet"))}>
               Delete permanently
             </button>
             <button type="button" className="text-muted-foreground" onClick={() => setConfirmDelete(false)}>Cancel</button>

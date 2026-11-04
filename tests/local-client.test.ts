@@ -99,6 +99,16 @@ test("filters: eq, neq, in, is, order, limit, and an empty in()", async () => {
   assert.deepEqual(await names(client.from("items").select("name").is("buy_date", null).order("name").limit(1)), ["a"]);
 });
 
+test("offers embed their platform, and a deleted platform leaves the offer in place", async () => {
+  const id = await item();
+  const { data: platform } = await client.from("platforms").insert({ user_id: LOCAL_USER_ID, name: "Temp" }).select("id").single();
+  await client.from("offers").insert({ item_id: id, platform_id: (platform as { id: string }).id, amount_chf: 50 });
+  const read = async () => ((await client.from("items").select("offers(amount_chf, status, platforms(name))").eq("id", id).single()).data as { offers: unknown[] }).offers;
+  assert.deepEqual(await read(), [{ amount_chf: 50, status: "pending", platforms: { name: "Temp" } }]);
+  await client.from("platforms").delete().eq("id", (platform as { id: string }).id);
+  assert.deepEqual(await read(), [{ amount_chf: 50, status: "pending", platforms: null }]);
+});
+
 test("single and maybeSingle follow Supabase's rules", async () => {
   const missing = "00000000-0000-4000-8000-0000000000ff";
   assert.equal((await client.from("items").select("*").eq("id", missing).maybeSingle()).data, null);

@@ -34,7 +34,7 @@ export default function LoginPage() {
         if (error) return setError(error.message);
         if (!data.session) return setNotice("Check your email to confirm your account.");
       }
-      router.replace("/inventory");
+      router.replace("/closet");
       router.refresh();
     });
   }
@@ -42,7 +42,7 @@ export default function LoginPage() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-10 p-6">
       <div>
-        <h1 className="font-heading text-6xl leading-none">Vitrine</h1>
+        <h1 className="wordmark text-6xl leading-none">Vitrine</h1>
         <p className="eyebrow mt-3">Wardrobe &amp; resale ledger</p>
       </div>
       <form onSubmit={submit} className="flex flex-col gap-4">

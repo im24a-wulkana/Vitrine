@@ -8,7 +8,28 @@ export const STATUS_LABEL: Record<ItemStatus, string> = {
   sold: "Sold",
 };
 
-export const CATEGORIES = ["Outerwear", "Tops", "Knitwear", "Bottoms", "Footwear", "Bags", "Accessories", "Other"];
+export const CATEGORIES = ["Tops", "Bottoms", "Outerwear", "Shoes", "Accessories", "Activewear"];
+export const CLOSET_TABS = ["All", ...CATEGORIES] as const;
+export type ClosetTab = (typeof CLOSET_TABS)[number];
+export const SEASONS = ["Spring", "Summer", "Autumn", "Winter"];
+export const OCCASIONS = ["Everyday", "Work", "Evening", "Formal", "Sport", "Travel"];
+
+/** Maps any stored category, including older or imported names, to a closet tab. */
+export function closetTab(category: string | null): ClosetTab | null {
+  if (!category) return null;
+  const aliases: Record<string, ClosetTab> = { knitwear: "Tops", footwear: "Shoes", bags: "Accessories" };
+  const key = category.trim().toLowerCase();
+  return aliases[key] ?? CATEGORIES.find((c) => c.toLowerCase() === key) ?? null;
+}
+
+export const MEASUREMENTS = [
+  ["pit_to_pit", "Pit to pit"],
+  ["length", "Length"],
+  ["sleeve", "Sleeve"],
+  ["waist", "Waist"],
+  ["inseam", "Inseam"],
+] as const;
+export type Measurements = Partial<Record<(typeof MEASUREMENTS)[number][0], number>>;
 export const CURRENCIES = ["CHF", "EUR", "USD", "GBP", "JPY"];
 export const EXPENSE_CATEGORIES = ["Shipping supplies", "Platform subscription", "Cleaning & repair", "Travel", "Authentication", "Other"];
 
@@ -37,6 +58,14 @@ export interface Item {
   buy_source: string | null;
   notes: string | null;
   tags: string[];
+  subcategory: string | null;
+  color_primary: string | null;
+  colors: string[];
+  seasons: string[];
+  occasions: string[];
+  storage_location: string | null;
+  measurements: Measurements;
+  favorite: boolean;
   created_at: string;
 }
 
@@ -100,10 +129,22 @@ export interface UserSettings {
   markdown_percent: number;
 }
 
+export interface Offer {
+  id: string;
+  amount_chf: number;
+  status: "pending" | "accepted" | "declined" | "countered";
+  created_at: string;
+  platforms: { name: string } | null;
+}
+
 export interface InventoryItem extends Item {
   item_images: ItemImage[];
   listings: Listing[];
   sales: Sale | null;
+}
+
+export interface ClosetItem extends InventoryItem {
+  wears: { worn_on: string }[];
 }
 
 export type ActionResult<T = undefined> = { ok: true; data: T } | { ok: false; error: string };

@@ -11,6 +11,7 @@ export interface OutfitPiece {
   id: string;
   brand: string;
   name: string;
+  status: string;
   item_images: { url: string; is_primary: boolean; position: number }[];
 }
 
@@ -20,15 +21,17 @@ export interface OutfitRow {
   outfit_items: { item_id: string; position: number }[];
 }
 
-export function OutfitBuilder({ pieces, outfits }: { pieces: OutfitPiece[]; outfits: OutfitRow[] }) {
-  const [editing, setEditing] = useState<{ id?: string } | null>(null);
+export function OutfitBuilder({ pieces, outfits, startWith }: { pieces: OutfitPiece[]; outfits: OutfitRow[]; startWith?: string }) {
+  const [editing, setEditing] = useState<{ id?: string } | null>(startWith ? {} : null);
   const [name, setName] = useState("");
-  const [chosen, setChosen] = useState<string[]>([]);
+  const [chosen, setChosen] = useState<string[]>(startWith ? [startWith] : []);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
   const byId = useMemo(() => new Map(pieces.map((p) => [p.id, p])), [pieces]);
+  // Your personal pieces, plus anything already in this outfit (for example, added from the closet).
+  const selectable = pieces.filter((p) => p.status === "personal" || chosen.includes(p.id));
 
   function openEditor(outfit?: OutfitRow) {
     setEditing({ id: outfit?.id });
@@ -62,7 +65,7 @@ export function OutfitBuilder({ pieces, outfits }: { pieces: OutfitPiece[]; outf
             {chosen.map((id) => {
               const image = primaryImage(byId.get(id)?.item_images);
               return (
-                <li key={id} className="aspect-[4/5] h-28 shrink-0 bg-muted">
+                <li key={id} className="aspect-[3/4] overflow-hidden rounded-lg h-28 shrink-0 bg-muted">
                   {image && <img src={image} alt={byId.get(id)?.name ?? ""} className="size-full object-cover" />}
                 </li>
               );
@@ -70,17 +73,17 @@ export function OutfitBuilder({ pieces, outfits }: { pieces: OutfitPiece[]; outf
           </ol>
         )}
 
-        {pieces.length === 0 ? (
+        {selectable.length === 0 ? (
           <p className="text-muted-foreground">Outfits use your personal items. Mark some items as Personal first.</p>
         ) : (
           <ul className="grid grid-cols-3 gap-2 md:grid-cols-5">
-            {pieces.map((piece) => {
+            {selectable.map((piece) => {
               const image = primaryImage(piece.item_images);
               const order = chosen.indexOf(piece.id);
               return (
                 <li key={piece.id}>
                   <button type="button" aria-pressed={order >= 0} className="w-full text-left" onClick={() => togglePiece(piece.id)}>
-                    <span className={cn("relative block aspect-[4/5] bg-muted", order >= 0 && "outline-2 -outline-offset-2 outline-foreground")}>
+                    <span className={cn("relative block aspect-[3/4] overflow-hidden rounded-lg bg-muted", order >= 0 && "outline-2 -outline-offset-2 outline-foreground")}>
                       {image && <img src={image} alt="" loading="lazy" className="size-full object-cover" />}
                       {order >= 0 && <span className="num absolute top-0 left-0 grid size-6 place-items-center bg-foreground text-xs text-background">{order + 1}</span>}
                     </span>
@@ -111,20 +114,20 @@ export function OutfitBuilder({ pieces, outfits }: { pieces: OutfitPiece[]; outf
       {notice && <p role="status" className="border border-foreground px-3 py-2 text-sm">{notice}</p>}
       {error && <p role="alert" className="text-sm font-medium">{error}</p>}
       {outfits.length === 0 ? (
-        <p className="py-12 font-heading text-3xl">No outfits yet.</p>
+        <p className="py-12 page-title">No outfits yet.</p>
       ) : (
         <ul className="flex flex-col gap-8">
           {outfits.map((outfit) => {
             const items = [...outfit.outfit_items].sort((a, b) => a.position - b.position);
             return (
               <li key={outfit.id}>
-                <h2 className="font-heading text-2xl">{outfit.name}</h2>
+                <h2 className="text-xl font-bold tracking-tight uppercase">{outfit.name}</h2>
                 <div className="no-scrollbar -mx-4 mt-2 flex gap-1 overflow-x-auto px-4">
                   {items.map(({ item_id }) => {
                     const piece = byId.get(item_id);
                     const image = primaryImage(piece?.item_images);
                     return (
-                      <div key={item_id} className="aspect-[4/5] h-40 shrink-0 bg-muted">
+                      <div key={item_id} className="aspect-[3/4] overflow-hidden rounded-lg h-40 shrink-0 bg-muted">
                         {image && <img src={image} alt={piece?.name ?? ""} loading="lazy" className="size-full object-cover" />}
                       </div>
                     );

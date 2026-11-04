@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { createItem, updateItem } from "@/lib/actions/items";
 import { localDate, roundMoney } from "@/lib/format";
-import { CATEGORIES, CURRENCIES, type Item, type Platform } from "@/lib/types";
+import { CATEGORIES, CURRENCIES, MEASUREMENTS, OCCASIONS, SEASONS, type Item, type Measurements, type Platform } from "@/lib/types";
 import { uploadItemPhoto } from "@/lib/upload";
 
 type Photo = { key: string; preview: string; url?: string; failed?: boolean; promise: Promise<string> };
@@ -41,12 +41,21 @@ export function ItemForm({ brands, platforms, defaultCurrency, item }: Props) {
 
   const [showMore, setShowMore] = useState(editing);
   const [size, setSize] = useState(item?.size ?? "");
-  const [color, setColor] = useState(item?.color ?? "");
+  const [color, setColor] = useState(item?.colors?.length ? item.colors.join(", ") : (item?.color ?? ""));
   const [condition, setCondition] = useState(item?.condition ? String(item.condition) : "");
   const [buyDate, setBuyDate] = useState(item?.buy_date ?? (editing ? "" : localDate()));
   const [buySource, setBuySource] = useState(item?.buy_source ?? "");
   const [tags, setTags] = useState(item?.tags.join(", ") ?? "");
   const [notes, setNotes] = useState(item?.notes ?? "");
+  const [subcategory, setSubcategory] = useState(item?.subcategory ?? "");
+  const [seasons, setSeasons] = useState<string[]>(item?.seasons ?? []);
+  const [occasions, setOccasions] = useState<string[]>(item?.occasions ?? []);
+  const [storage, setStorage] = useState(item?.storage_location ?? "");
+  const [measurements, setMeasurements] = useState<Record<string, string>>(
+    Object.fromEntries(Object.entries(item?.measurements ?? {}).map(([k, v]) => [k, String(v)])),
+  );
+  const [favorite, setFavorite] = useState(item?.favorite ?? false);
+  const toggleIn = (list: string[], value: string) => (list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
 
   const [error, setError] = useState<string | null>(null);
   const [savedCount, setSavedCount] = useState(0);
@@ -140,7 +149,7 @@ export function ItemForm({ brands, platforms, defaultCurrency, item }: Props) {
       name,
       category,
       size,
-      color,
+      color: color.split(",")[0]?.trim() ?? "",
       condition: condition ? Number(condition) : null,
       buy_price: buyPrice,
       buy_currency: currency,
@@ -149,6 +158,15 @@ export function ItemForm({ brands, platforms, defaultCurrency, item }: Props) {
       buy_source: buySource,
       notes,
       tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
+      subcategory,
+      colors: color.split(",").map((c) => c.trim()).filter(Boolean),
+      seasons,
+      occasions,
+      storage_location: storage,
+      measurements: Object.fromEntries(
+        Object.entries(measurements).filter(([, v]) => v !== "" && Number(v) >= 0).map(([k, v]) => [k, Number(v)]),
+      ) as Measurements,
+      favorite,
     };
 
     start(async () => {
@@ -205,7 +223,7 @@ export function ItemForm({ brands, platforms, defaultCurrency, item }: Props) {
           {photos.length > 0 && (
             <div className="no-scrollbar -mx-4 mb-2 flex snap-x gap-2 overflow-x-auto px-4">
               {photos.map((p) => (
-                <div key={p.key} className="relative aspect-[4/5] h-56 shrink-0 snap-start bg-muted">
+                <div key={p.key} className="relative aspect-[3/4] overflow-hidden rounded-lg h-56 shrink-0 snap-start bg-muted">
                   <img src={p.preview} alt="" className="size-full object-cover" />
                   {!p.url && !p.failed && (
                     <span className="absolute inset-0 grid place-items-center bg-background/50"><Loader2 className="size-6 animate-spin" /></span>
@@ -327,7 +345,7 @@ export function ItemForm({ brands, platforms, defaultCurrency, item }: Props) {
               <Input id="size" value={size} onChange={(e) => setSize(e.target.value)} />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="color">Color</Label>
+              <Label htmlFor="color">Colors</Label>
               <Input id="color" value={color} onChange={(e) => setColor(e.target.value)} />
             </div>
             <div className="flex flex-col gap-1.5">
@@ -348,6 +366,42 @@ export function ItemForm({ brands, platforms, defaultCurrency, item }: Props) {
               <Input id="source" value={buySource} onChange={(e) => setBuySource(e.target.value)} />
             </div>
           </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="subcategory">Subcategory</Label>
+            <Input id="subcategory" placeholder="Knitwear, denim, boots" value={subcategory} onChange={(e) => setSubcategory(e.target.value)} />
+          </div>
+          <fieldset>
+            <legend className="mb-1.5 text-sm leading-none font-medium">Season</legend>
+            <div className="flex flex-wrap gap-1.5">
+              {SEASONS.map((s) => (
+                <button key={s} type="button" className="chip" data-active={seasons.includes(s)} aria-pressed={seasons.includes(s)} onClick={() => setSeasons(toggleIn(seasons, s))}>{s}</button>
+              ))}
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend className="mb-1.5 text-sm leading-none font-medium">Occasion</legend>
+            <div className="flex flex-wrap gap-1.5">
+              {OCCASIONS.map((o) => (
+                <button key={o} type="button" className="chip" data-active={occasions.includes(o)} aria-pressed={occasions.includes(o)} onClick={() => setOccasions(toggleIn(occasions, o))}>{o}</button>
+              ))}
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend className="mb-1.5 text-sm leading-none font-medium">Measurements, cm</legend>
+            <div className="grid grid-cols-3 gap-2">
+              {MEASUREMENTS.map(([key, label]) => (
+                <div key={key} className="flex min-w-0 flex-col gap-1">
+                  <Label htmlFor={`m-${key}`} className="text-xs font-normal">{label}</Label>
+                  <Input id={`m-${key}`} inputMode="decimal" className="num" value={measurements[key] ?? ""} onChange={(e) => setMeasurements({ ...measurements, [key]: e.target.value.replace(",", ".") })} />
+                </div>
+              ))}
+            </div>
+          </fieldset>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="storage">Storage location</Label>
+            <Input id="storage" placeholder="Hall closet, box 3" value={storage} onChange={(e) => setStorage(e.target.value)} />
+          </div>
+          <button type="button" className="chip self-start" data-active={favorite} aria-pressed={favorite} onClick={() => setFavorite(!favorite)}>Favorite</button>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="tags">Tags, comma separated</Label>
             <Input id="tags" value={tags} onChange={(e) => setTags(e.target.value)} />

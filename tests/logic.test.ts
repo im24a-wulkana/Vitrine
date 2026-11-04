@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { guessMapping, mapRow, parseAmount, parseCsv, parseDate, toCsv, type ColumnMapping } from "../src/lib/csv";
 import { daysBetween, rankBrands } from "../src/lib/format";
+import { closetTab } from "../src/lib/types";
 import {
   costPerWear, feeFor, groupSales, isUnworn, listingAgeDays, netProfit, profitByMonth,
   suggestedMarkdown, summarize, yearlySummary, type SaleRow,
@@ -192,4 +193,13 @@ test("an export can be parsed back and imported", () => {
   assert.equal(r.row.name, 'Coat, "long"');
   assert.equal(r.row.buy_price_chf, 94.5);
   assert.equal(r.row.sale?.sale_price, 250);
+});
+
+test("closetTab maps older and imported category names to a tab", () => {
+  assert.equal(closetTab("Tops"), "Tops");
+  assert.equal(closetTab("knitwear"), "Tops");
+  assert.equal(closetTab("Footwear"), "Shoes");
+  assert.equal(closetTab("Bags"), "Accessories");
+  assert.equal(closetTab("Something else"), null);
+  assert.equal(closetTab(null), null);
 });

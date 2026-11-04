@@ -5,8 +5,8 @@ import { money, moneyWhole, signedMoney } from "@/lib/format";
 import type { GroupPoint, MonthPoint } from "@/lib/metrics";
 
 const INK = "var(--foreground)";
-const LOSS = "#6b665c"; // Losses also sit below the zero line, so this is never color alone.
-const AXIS = "#9a9488";
+const LOSS = "#808080"; // Losses also sit below the zero line, so this is never color alone.
+const AXIS = "#8a8a88";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const monthLabel = (key: string) => MONTHS[Number(key.slice(5, 7)) - 1];
@@ -30,7 +30,7 @@ export function ProfitByMonthChart({ data }: { data: MonthPoint[] }) {
             <YAxis width={44} tickFormatter={moneyWhole} tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: AXIS, fontFamily: "var(--font-geist-mono)" }} />
             <ReferenceLine y={0} stroke={INK} />
             <Tooltip
-              cursor={{ fill: "rgba(255,255,255,0.06)" }}
+              cursor={{ fill: "rgba(128,128,128,0.14)" }}
               content={({ active, payload }) => {
                 const point = payload?.[0]?.payload as MonthPoint | undefined;
                 return active && point ? <TooltipBox title={point.month} lines={[signedMoney(point.profit)]} /> : null;
@@ -71,7 +71,7 @@ export function RankedBars({ data, dataKey, format }: { data: GroupPoint[]; data
           <YAxis type="category" dataKey="name" width={104} tickLine={false} axisLine={false} interval={0} tick={{ fontSize: 12, fill: INK }} tickFormatter={(v: string) => (v.length > 14 ? `${v.slice(0, 13)}…` : v)} />
           <ReferenceLine x={0} stroke={INK} />
           <Tooltip
-            cursor={{ fill: "rgba(255,255,255,0.06)" }}
+            cursor={{ fill: "rgba(128,128,128,0.14)" }}
             content={({ active, payload }) => {
               const p = payload?.[0]?.payload as GroupPoint | undefined;
               return active && p ? (

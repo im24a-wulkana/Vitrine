@@ -86,7 +86,7 @@ export function SoldDialog({ target, platforms, onClose }: Props) {
 
   return (
     <Dialog open={!!target} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="top-auto bottom-0 max-w-none translate-y-0 grid-cols-[minmax(0,1fr)] sm:top-1/2 sm:bottom-auto sm:max-w-md sm:-translate-y-1/2">
+      <DialogContent className="sheet">
         <DialogHeader className="text-left">
           <DialogTitle>Mark as sold</DialogTitle>
           <DialogDescription>{target?.brand} · {target?.name}</DialogDescription>

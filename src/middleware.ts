@@ -8,7 +8,7 @@ export async function middleware(request: NextRequest) {
   if (isLocalMode) {
     if (request.nextUrl.pathname !== "/login") return NextResponse.next();
     const url = request.nextUrl.clone();
-    url.pathname = "/inventory";
+    url.pathname = "/closet";
     return NextResponse.redirect(url);
   }
 
@@ -44,7 +44,7 @@ export async function middleware(request: NextRequest) {
   }
   if (user && pathname === "/login") {
     const url = request.nextUrl.clone();
-    url.pathname = "/inventory";
+    url.pathname = "/closet";
     url.search = "";
     return NextResponse.redirect(url);
   }

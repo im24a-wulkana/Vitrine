@@ -22,7 +22,9 @@ const RELATIONS: Record<string, Record<string, Relation>> = {
     listings: { table: "listings", kind: "many", key: "item_id" },
     sales: { table: "sales", kind: "one", key: "item_id" },
     wears: { table: "wears", kind: "many", key: "item_id" },
+    offers: { table: "offers", kind: "many", key: "item_id" },
   },
+  offers: { platforms: { table: "platforms", kind: "parent", key: "platform_id" } },
   listings: {
     price_changes: { table: "price_changes", kind: "many", key: "listing_id" },
     items: { table: "items", kind: "parent", key: "item_id" },

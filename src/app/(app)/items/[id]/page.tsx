@@ -1,15 +1,26 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ItemActions } from "@/components/item-actions";
+import { WearChart } from "@/components/wear-chart";
 import { daysBetween, localDate, money, shortDate, signedMoney } from "@/lib/format";
 import { costPerWear } from "@/lib/metrics";
 import { requireUser } from "@/lib/supabase/server";
-import { STATUS_LABEL, type InventoryItem, type Listing, type Platform, type PriceChange } from "@/lib/types";
+import { MEASUREMENTS, STATUS_LABEL, type InventoryItem, type Listing, type Offer, type Platform, type PriceChange } from "@/lib/types";
 
 type DetailItem = InventoryItem & {
   listings: (Listing & { price_changes: PriceChange[] })[];
   wears: { worn_on: string }[];
+  offers: Offer[];
 };
+
+const OFFER_LABEL: Record<Offer["status"], string> = { pending: "Pending", accepted: "Accepted", declined: "Declined", countered: "Countered" };
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const { supabase } = await requireUser();
+  const { data } = await supabase.from("items").select("brand, name").eq("id", id).maybeSingle();
+  return { title: data ? `${data.brand} ${data.name}` : "Item" };
+}
 
 export default async function ItemPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -17,7 +28,7 @@ export default async function ItemPage({ params }: { params: Promise<{ id: strin
   const [{ data }, { data: platforms }] = await Promise.all([
     supabase
       .from("items")
-      .select("*, item_images(*), listings(*, price_changes(*)), sales(*), wears(worn_on)")
+      .select("*, item_images(*), listings(*, price_changes(*)), sales(*), wears(worn_on), offers(*, platforms(name))")
       .eq("id", id)
       .maybeSingle(),
     supabase.from("platforms").select("*").order("name"),
@@ -32,6 +43,10 @@ export default async function ItemPage({ params }: { params: Promise<{ id: strin
 
   const facts: [string, string | null][] = [
     ["Size", item.size],
+    ["Subcategory", item.subcategory],
+    ["Storage", item.storage_location],
+    ["Season", item.seasons.join(", ")],
+    ["Occasion", item.occasions.join(", ")],
     ["Color", item.color],
     ["Category", item.category],
     ["Condition", item.condition ? `${item.condition}/10` : null],
@@ -46,9 +61,9 @@ export default async function ItemPage({ params }: { params: Promise<{ id: strin
   return (
     <div className="grid gap-8 md:grid-cols-2">
       <section aria-label="Photos" className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-2 overflow-x-auto md:mx-0 md:flex-col md:overflow-visible">
-        {images.length === 0 && <div className="eyebrow grid aspect-[4/5] w-full shrink-0 place-items-center bg-muted">No photo</div>}
+        {images.length === 0 && <div className="eyebrow grid aspect-[3/4] rounded-lg w-full shrink-0 place-items-center bg-muted">No photo</div>}
         {images.map((image) => (
-          <img key={image.id} src={image.url} alt={`${item.brand} ${item.name}`} className="aspect-[4/5] w-[88%] shrink-0 snap-center bg-muted object-cover md:w-full" />
+          <img key={image.id} src={image.url} alt={`${item.brand} ${item.name}`} className="aspect-[3/4] rounded-lg w-[88%] shrink-0 snap-center bg-muted object-cover md:w-full" />
         ))}
       </section>
 
@@ -84,6 +99,37 @@ export default async function ItemPage({ params }: { params: Promise<{ id: strin
         </dl>
         {item.notes && <p className="text-sm whitespace-pre-wrap">{item.notes}</p>}
 
+        {MEASUREMENTS.some(([key]) => item.measurements[key] !== undefined) && (
+          <section>
+            <h2 className="eyebrow border-b pb-2">Measurements, cm</h2>
+            <dl className="mt-2 grid grid-cols-3 gap-3 text-sm">
+              {MEASUREMENTS.filter(([key]) => item.measurements[key] !== undefined).map(([key, label]) => (
+                <div key={key}>
+                  <dt className="text-xs text-muted-foreground">{label}</dt>
+                  <dd className="num">{item.measurements[key]}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        )}
+
+        <WearChart wears={item.wears} />
+
+        {item.offers.length > 0 && (
+          <section>
+            <h2 className="eyebrow border-b pb-2">Offers</h2>
+            <ul className="text-sm">
+              {[...item.offers].sort((a, b) => b.created_at.localeCompare(a.created_at)).map((offer) => (
+                <li key={offer.id} className="flex items-baseline justify-between gap-3 border-b py-2">
+                  <span>{OFFER_LABEL[offer.status]}{offer.platforms ? ` · ${offer.platforms.name}` : ""}</span>
+                  <span className="num text-xs text-muted-foreground">{shortDate(offer.created_at)}</span>
+                  <span className="num ml-auto">{money(offer.amount_chf)}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         {listings.length > 0 && (
           <section>
             <h2 className="eyebrow border-b pb-2">Listing history</h2>
@@ -110,7 +156,7 @@ export default async function ItemPage({ params }: { params: Promise<{ id: strin
           </section>
         )}
 
-        <Link href="/inventory" className="text-sm underline underline-offset-4">Back to stock</Link>
+        <Link href="/closet" className="text-sm underline underline-offset-4">Back to closet</Link>
       </div>
     </div>
   );

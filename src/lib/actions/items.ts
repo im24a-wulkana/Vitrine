@@ -22,6 +22,13 @@ const itemFields = z.object({
   buy_source: optionalText,
   notes: optionalText,
   tags: z.array(z.string().trim().min(1).max(60)).max(30).default([]),
+  subcategory: optionalText,
+  colors: z.array(z.string().trim().min(1).max(60)).max(12).default([]),
+  seasons: z.array(z.string().max(30)).max(4).default([]),
+  occasions: z.array(z.string().max(30)).max(12).default([]),
+  storage_location: optionalText,
+  measurements: z.record(z.string(), z.number().min(0)).default({}),
+  favorite: z.boolean().default(false),
 });
 
 const createSchema = itemFields.extend({
@@ -170,5 +177,32 @@ export async function setPrimaryImage(itemId: string, imageId: string): Promise<
   const { error } = await supabase.from("item_images").update({ is_primary: true }).eq("id", imageId);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/", "layout");
+  return { ok: true, data: undefined };
+}
+
+export async function setFavorite(id: string, favorite: boolean): Promise<ActionResult> {
+  const { supabase, user } = await getUser();
+  if (!user) return { ok: false, error: "Not signed in" };
+  const { error } = await supabase.from("items").update({ favorite }).eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/", "layout");
+  return { ok: true, data: undefined };
+}
+
+/** Adds to the end of the outfit. Adding an item it already contains changes nothing. */
+export async function addToOutfit(outfitId: string, itemId: string): Promise<ActionResult> {
+  const { supabase, user } = await getUser();
+  if (!user) return { ok: false, error: "Not signed in" };
+  const { data: existing, error: readError } = await supabase.from("outfit_items").select("position").eq("outfit_id", outfitId);
+  if (readError) return { ok: false, error: readError.message };
+  const positions = (existing ?? []).map((row: { position: number }) => row.position);
+  const { error } = await supabase
+    .from("outfit_items")
+    .upsert(
+      { outfit_id: outfitId, item_id: itemId, position: positions.length ? Math.max(...positions) + 1 : 0 },
+      { onConflict: "outfit_id,item_id", ignoreDuplicates: true },
+    );
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/outfits");
   return { ok: true, data: undefined };
 }

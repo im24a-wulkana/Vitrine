@@ -1,4 +1,4 @@
-// Generates the dark sample photos used by the seed data.
+// Generates the sample photos used by the seed data.
 // Run once: node scripts/generate-placeholders.mjs
 import { mkdirSync, writeFileSync } from "node:fs";
 
@@ -15,6 +15,6 @@ const SHAPES = {
 for (const [name, path] of Object.entries(SHAPES)) {
   writeFileSync(
     `public/placeholders/${name}.svg`,
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 450 562" preserveAspectRatio="xMidYMid slice"><rect width="450" height="562" fill="#171512"/><path d="${path}" fill="#23201c" stroke="#c9b48a" stroke-width="1.25" stroke-linejoin="round"/></svg>\n`,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 450 562" preserveAspectRatio="xMidYMid slice"><path d="${path}" fill="#8a8a8824" stroke="#8a8a88" stroke-width="1.25" stroke-linejoin="round"/></svg>\n`,
   );
 }

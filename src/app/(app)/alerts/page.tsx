@@ -20,7 +20,7 @@ export default async function AlertsPage() {
         </p>
       </header>
       {alerts.length === 0 ? (
-        <p className="py-12 font-heading text-3xl">Nothing is sitting too long.</p>
+        <p className="py-12 page-title">Nothing is sitting too long.</p>
       ) : (
         <ul>{alerts.map((a) => <AlertRow key={a.listing_id} alert={a} />)}</ul>
       )}

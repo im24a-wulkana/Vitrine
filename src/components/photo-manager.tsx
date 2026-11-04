@@ -33,7 +33,7 @@ export function PhotoManager({ itemId, images }: { itemId: string; images: ItemI
     <section aria-label="Photos" className="flex flex-col gap-2">
       <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4">
         {sorted.map((image) => (
-          <div key={image.id} className="relative aspect-[4/5] h-48 shrink-0 bg-muted">
+          <div key={image.id} className="relative aspect-[3/4] overflow-hidden rounded-lg h-48 shrink-0 bg-muted">
             <img src={image.url} alt="" className="size-full object-cover" />
             <button
               type="button"

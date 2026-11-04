@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { DashboardCharts } from "@/components/charts-client";
+import { BUSINESS_LINKS } from "@/lib/business-links";
 import { localDate, money, moneyWhole, percent, signedMoney } from "@/lib/format";
 import { groupSales, profitByMonth, summarize, type Period } from "@/lib/metrics";
 import { getAgingAlerts, getSettings } from "@/lib/queries";
 import { getExpenseRows, getSaleRows } from "@/lib/sales-data";
 import { requireUser } from "@/lib/supabase/server";
 
-export const metadata = { title: "Numbers" };
+export const metadata = { title: "Business" };
 
 const PERIODS: { value: Period; label: string }[] = [
   { value: "month", label: "Month" },
@@ -49,7 +50,15 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   return (
     <div className="flex flex-col gap-10">
       <header className="flex flex-col gap-4">
-        <h1 className="page-title">Numbers</h1>
+        <h1 className="page-title">Business</h1>
+        <nav aria-label="Business pages" className="no-scrollbar -mx-4 flex gap-4 overflow-x-auto border-b px-4 pb-2.5 text-sm md:hidden">
+          {BUSINESS_LINKS.map((l) => (
+            <Link key={l.href} href={l.href} className="whitespace-nowrap text-muted-foreground">
+              {l.label}
+              {l.href === "/alerts" && alerts.length > 0 && <span className="num ml-1 rounded-sm bg-foreground px-1 text-[10px] text-background">{alerts.length}</span>}
+            </Link>
+          ))}
+        </nav>
         <nav aria-label="Period" className="flex gap-1.5">
           {PERIODS.map((p) => (
             <Link key={p.value} href={`/dashboard?period=${p.value}`} className="chip" data-active={period === p.value} aria-current={period === p.value ? "true" : undefined}>

@@ -186,6 +186,7 @@ test("RLS: child rows cannot be attached to someone else's item", async () => {
       `insert into public.listings (item_id, platform) values ($1, 'x')`,
       `insert into public.wears (item_id) values ($1)`,
       `insert into public.item_images (item_id, url) values ($1, 'x')`,
+      `insert into public.offers (item_id, amount_chf) values ($1, 1)`,
     ]) {
       await assert.rejects(db.query(sql, [theirs]), /row-level security/, sql);
     }
