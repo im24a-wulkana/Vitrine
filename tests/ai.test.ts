@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import Anthropic from "@anthropic-ai/sdk";
 import { AiError, AnthropicProvider, getLLMProvider, isAiConfigured } from "../src/lib/ai/providers";
-import { ItemTagsSchema, sanitizeOutfit } from "../src/lib/ai/schema";
+import { ItemTagsSchema, normalizeTags, sanitizeOutfit } from "../src/lib/ai/schema";
 import { colorName } from "../src/lib/colors";
 
 function fakeClient(respond: (params: Record<string, unknown>) => unknown) {
@@ -115,4 +115,11 @@ test("colour names from hex", () => {
     assert.equal(colorName(hex), name, hex);
   }
   assert.equal(colorName("nope"), null);
+});
+
+test("colours are title-cased and deduplicated, and an empty list counts as unsure", () => {
+  const base = { category: null, subcategory: null, seasons: null, occasions: null, label_text: null };
+  assert.deepEqual(normalizeTags({ ...base, colors: ["navy", " dark GREEN ", "Navy"] }).colors, ["Navy", "Dark Green"]);
+  assert.equal(normalizeTags({ ...base, colors: [] }).colors, null);
+  assert.equal(normalizeTags({ ...base, colors: null }).colors, null);
 });

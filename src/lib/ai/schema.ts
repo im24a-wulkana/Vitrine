@@ -14,6 +14,12 @@ export const ItemTagsSchema = z.object({
 });
 export type ItemTags = z.infer<typeof ItemTagsSchema>;
 
+/** Title-cases colours, so "navy" and "Navy" don't become two entries in the closet's colour filter. */
+export function normalizeTags(tags: ItemTags): ItemTags {
+  const colors = tags.colors?.map((c) => c.trim().replace(/\S+/g, (word) => word[0].toUpperCase() + word.slice(1).toLowerCase())).filter(Boolean);
+  return { ...tags, colors: colors?.length ? [...new Set(colors)] : null };
+}
+
 export const OutfitSuggestionSchema = z.object({
   item_ids: z.array(z.string()),
   reasoning: z.string().nullable(),

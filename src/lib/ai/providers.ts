@@ -1,7 +1,7 @@
 // Server only. AI keys are read here and never reach the browser.
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { ItemTagsSchema, OutfitSuggestionSchema, type ItemTags, type OutfitRequest, type OutfitSuggestion } from "./schema";
+import { ItemTagsSchema, normalizeTags, OutfitSuggestionSchema, type ItemTags, type OutfitRequest, type OutfitSuggestion } from "./schema";
 
 export interface VisionImage {
   /** Base64, with no data: prefix. */
@@ -83,7 +83,7 @@ export class AnthropicProvider implements VisionProvider, LLMProvider {
           },
         ],
       });
-      return readParsed(response);
+      return normalizeTags(readParsed(response));
     } catch (error) {
       throw failure(error);
     }
