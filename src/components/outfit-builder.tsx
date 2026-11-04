@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { CanvasPreview } from "@/components/canvas-preview";
+import { GenerateOutfit } from "@/components/generate-outfit";
 import { OutfitEditor, type OutfitDraft, type OutfitMode } from "@/components/outfit-editor";
 import { Button } from "@/components/ui/button";
 import { deleteOutfit, wearOutfit } from "@/lib/actions/wardrobe";
@@ -25,7 +26,7 @@ export interface OutfitRow {
   outfit_items: (Placement & { position: number })[];
 }
 
-export function OutfitBuilder({ pieces, outfits, startWith }: { pieces: OutfitPiece[]; outfits: OutfitRow[]; startWith?: string }) {
+export function OutfitBuilder({ pieces, outfits, startWith, aiEnabled = false }: { pieces: OutfitPiece[]; outfits: OutfitRow[]; startWith?: string; aiEnabled?: boolean }) {
   const byId = useMemo(() => new Map(pieces.map((p) => [p.id, p])), [pieces]);
   const [draft, setDraft] = useState<OutfitDraft | null>(() => {
     const piece = startWith ? pieces.find((p) => p.id === startWith) : undefined;
@@ -53,7 +54,17 @@ export function OutfitBuilder({ pieces, outfits, startWith }: { pieces: OutfitPi
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 pb-16">
+      <GenerateOutfit
+        pieces={pieces}
+        aiEnabled={aiEnabled}
+        onUse={(itemIds, occasion) => {
+          setNotice(null);
+          const placements: Placement[] = [];
+          for (const id of itemIds) placements.push(defaultPlacement(id, byId.get(id)?.category ?? null, placements));
+          setDraft({ name: "", occasion, mode: "slots", placements });
+        }}
+      />
       <header className="flex items-end justify-between gap-4">
         <h1 className="page-title">Outfits</h1>
         <Button onClick={() => { setNotice(null); setDraft({ name: "", occasion: null, mode: "slots", placements: [] }); }}>New outfit</Button>

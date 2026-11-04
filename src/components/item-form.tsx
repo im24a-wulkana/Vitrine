@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Camera, ImagePlus } from "lucide-react";
 import Link from "next/link";
+import { AiMark, AiTagSheet } from "@/components/ai-tag-sheet";
 import { CompHint } from "@/components/comp-hint";
 import { CutoutProgress, PhotoTile } from "@/components/photo-tile";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { createItem, updateItem } from "@/lib/actions/items";
+import type { ItemTags } from "@/lib/ai/schema";
+import { colorName } from "@/lib/colors";
 import { localDate, roundMoney } from "@/lib/format";
+import { dominantColor, photoForAi } from "@/lib/image-pipeline";
 import type { CompRow } from "@/lib/metrics";
 import { CATEGORIES, CURRENCIES, MEASUREMENTS, OCCASIONS, SEASONS, type Item, type Measurements, type Platform } from "@/lib/types";
 import { attachPendingCutouts, imagesForSave, usePhotos } from "@/lib/use-photos";
@@ -24,9 +28,10 @@ interface Props {
   defaultCurrency: string;
   item?: Item; // present when editing
   comps?: CompRow[];
+  aiEnabled?: boolean;
 }
 
-export function ItemForm({ brands, platforms, defaultCurrency, item, comps = [] }: Props) {
+export function ItemForm({ brands, platforms, defaultCurrency, item, comps = [], aiEnabled = false }: Props) {
   const router = useRouter();
   const editing = !!item;
   const [itemId, setItemId] = useState(() => item?.id ?? crypto.randomUUID());
@@ -60,6 +65,25 @@ export function ItemForm({ brands, platforms, defaultCurrency, item, comps = [] 
   );
   const [favorite, setFavorite] = useState(item?.favorite ?? false);
   const toggleIn = (list: string[], value: string) => (list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
+
+  const [colorPrimary, setColorPrimary] = useState<string | null>(item?.color_primary ?? null);
+  // AI suggestions. Nothing reaches the form until the user applies them, and a
+  // field's mark goes away as soon as they edit it.
+  const [aiState, setAiState] = useState<"idle" | "loading" | "ready" | "failed">("idle");
+  const [aiMessage, setAiMessage] = useState<string | null>(null);
+  const [aiTags, setAiTags] = useState<ItemTags | null>(null);
+  const [aiSheetOpen, setAiSheetOpen] = useState(false);
+  const [aiFields, setAiFields] = useState<Set<string>>(new Set());
+  const [colorFromPhoto, setColorFromPhoto] = useState(false);
+  const unmark = (field: string) =>
+    setAiFields((all) => {
+      if (!all.has(field)) return all;
+      const next = new Set(all);
+      next.delete(field);
+      return next;
+    });
+  const taggedItem = useRef<string | null>(null);
+  const colouredItem = useRef<string | null>(null);
 
   const [error, setError] = useState<string | null>(null);
   const [savedCount, setSavedCount] = useState(0);
@@ -105,12 +129,87 @@ export function ItemForm({ brands, platforms, defaultCurrency, item, comps = [] 
   }, [price, rate, currency]);
 
   function addFiles(files: FileList | null) {
-    if (files) addPhotos(Array.from(files), () => itemId);
+    if (!files || files.length === 0) return;
+    addPhotos(Array.from(files), () => itemId);
+    if (aiEnabled && taggedItem.current !== itemId) {
+      taggedItem.current = itemId;
+      void requestTags(files[0]);
+    }
   }
+
+  async function requestTags(file: File) {
+    const forItem = itemId;
+    setAiState("loading");
+    setAiMessage(null);
+    try {
+      const form = new FormData();
+      form.append("image", await photoForAi(file));
+      const res = await fetch("/api/ai/tag", { method: "POST", body: form });
+      const body = await res.json();
+      // The user may have saved and moved on to the next item by now.
+      if (taggedItem.current !== forItem) return;
+      if (!res.ok) throw new Error(body.error);
+      setAiTags(body.tags);
+      setAiState("ready");
+      setAiSheetOpen(true);
+    } catch (e) {
+      if (taggedItem.current !== forItem) return;
+      setAiState("failed");
+      setAiMessage(e instanceof Error && e.message ? e.message : "Couldn't get AI suggestions.");
+    }
+  }
+
+  function applyTags(tags: ItemTags, useLabelAsBrand: boolean) {
+    const marked = new Set<string>();
+    if (tags.category) { setCategory(tags.category); marked.add("category"); }
+    if (tags.subcategory) { setSubcategory(tags.subcategory); marked.add("subcategory"); }
+    if (tags.colors?.length) { setColor(tags.colors.join(", ")); setColorFromPhoto(false); marked.add("color"); }
+    if (tags.seasons?.length) { setSeasons(tags.seasons); marked.add("seasons"); }
+    if (tags.occasions?.length) { setOccasions(tags.occasions); marked.add("occasions"); }
+    if (useLabelAsBrand && tags.label_text) setBrand(tags.label_text);
+    setAiFields(marked);
+    setShowMore(true);
+    setAiSheetOpen(false);
+    setAiState("idle");
+  }
+
+  // Colour from the photo works with no AI at all, and fills the gap when AI isn't sure.
+  // It waits for the cutout, because the background would otherwise skew it.
+  const firstPhoto = photos[0];
+  const colorSource = firstPhoto?.cutoutPreview ?? (firstPhoto?.cutoutState === "failed" ? firstPhoto.preview : null);
+  useEffect(() => {
+    if (editing || !colorSource || colouredItem.current === itemId) return;
+    colouredItem.current = itemId;
+    dominantColor(colorSource).then((hex) => {
+      if (!hex || colouredItem.current !== itemId) return;
+      setColorPrimary(hex);
+      const name = colorName(hex);
+      if (name) {
+        setColor((current) => {
+          if (current.trim()) return current;
+          setColorFromPhoto(true);
+          return name;
+        });
+      }
+    });
+  }, [colorSource, editing, itemId]);
 
   function resetForNext() {
     setItemId(crypto.randomUUID());
     clearPhotos();
+    setCategory("");
+    setSubcategory("");
+    setSeasons([]);
+    setOccasions([]);
+    setColorPrimary(null);
+    setColorFromPhoto(false);
+    setAiFields(new Set());
+    setAiTags(null);
+    setAiState("idle");
+    setAiMessage(null);
+    setAiSheetOpen(false);
+    taggedItem.current = null;
+    colouredItem.current = null;
     setName("");
     setPrice("");
     setPriceChf("");
@@ -152,6 +251,7 @@ export function ItemForm({ brands, platforms, defaultCurrency, item, comps = [] 
       buy_source: buySource,
       notes,
       tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
+      color_primary: colorPrimary,
       subcategory,
       colors: color.split(",").map((c) => c.trim()).filter(Boolean),
       seasons,
@@ -230,6 +330,12 @@ export function ItemForm({ brands, platforms, defaultCurrency, item, comps = [] 
           </div>
           <div className="mt-2 flex flex-col gap-1">
             <CutoutProgress />
+            {aiState === "loading" && <p role="status" className="text-xs text-muted-foreground">Getting AI suggestions…</p>}
+            {aiState === "failed" && <p role="status" className="text-xs text-muted-foreground">{aiMessage} You can fill this in yourself.</p>}
+            {aiState === "ready" && !aiSheetOpen && (
+              <button type="button" className="self-start text-sm underline underline-offset-4" onClick={() => setAiSheetOpen(true)}>Review AI suggestions</button>
+            )}
+            {!aiEnabled && photos.length > 0 && <p className="text-xs text-muted-foreground">AI tagging is off. Add ANTHROPIC_API_KEY to turn it on.</p>}
             <Link href="/items/batch" className="self-start text-sm underline underline-offset-4">Adding several items? Use batch upload</Link>
           </div>
         </section>
@@ -316,10 +422,10 @@ export function ItemForm({ brands, platforms, defaultCurrency, item, comps = [] 
       )}
 
       <div className="flex flex-col gap-1.5">
-        <span className="text-sm leading-none font-medium">Category</span>
+        <span className="text-sm leading-none font-medium">Category{aiFields.has("category") && <AiMark />}</span>
         <div className="flex flex-wrap gap-1.5">
           {CATEGORIES.map((c) => (
-            <button key={c} type="button" className="chip" data-active={category === c} aria-pressed={category === c} onClick={() => setCategory(category === c ? "" : c)}>{c}</button>
+            <button key={c} type="button" className="chip" data-active={category === c} aria-pressed={category === c} onClick={() => { unmark("category"); setCategory(category === c ? "" : c); }}>{c}</button>
           ))}
         </div>
       </div>
@@ -336,8 +442,8 @@ export function ItemForm({ brands, platforms, defaultCurrency, item, comps = [] 
               <Input id="size" value={size} onChange={(e) => setSize(e.target.value)} />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="color">Colors</Label>
-              <Input id="color" value={color} onChange={(e) => setColor(e.target.value)} />
+              <Label htmlFor="color">Colors{aiFields.has("color") && <AiMark />}{colorFromPhoto && <span className="eyebrow ml-1.5 font-normal normal-case tracking-normal">From photo</span>}</Label>
+              <Input id="color" value={color} onChange={(e) => { unmark("color"); setColorFromPhoto(false); setColor(e.target.value); }} />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="condition">Condition</Label>
@@ -358,22 +464,22 @@ export function ItemForm({ brands, platforms, defaultCurrency, item, comps = [] 
             </div>
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="subcategory">Subcategory</Label>
-            <Input id="subcategory" placeholder="Knitwear, denim, boots" value={subcategory} onChange={(e) => setSubcategory(e.target.value)} />
+            <Label htmlFor="subcategory">Subcategory{aiFields.has("subcategory") && <AiMark />}</Label>
+            <Input id="subcategory" placeholder="Knitwear, denim, boots" value={subcategory} onChange={(e) => { unmark("subcategory"); setSubcategory(e.target.value); }} />
           </div>
           <fieldset>
-            <legend className="mb-1.5 text-sm leading-none font-medium">Season</legend>
+            <legend className="mb-1.5 text-sm leading-none font-medium">Season{aiFields.has("seasons") && <AiMark />}</legend>
             <div className="flex flex-wrap gap-1.5">
               {SEASONS.map((s) => (
-                <button key={s} type="button" className="chip" data-active={seasons.includes(s)} aria-pressed={seasons.includes(s)} onClick={() => setSeasons(toggleIn(seasons, s))}>{s}</button>
+                <button key={s} type="button" className="chip" data-active={seasons.includes(s)} aria-pressed={seasons.includes(s)} onClick={() => { unmark("seasons"); setSeasons(toggleIn(seasons, s)); }}>{s}</button>
               ))}
             </div>
           </fieldset>
           <fieldset>
-            <legend className="mb-1.5 text-sm leading-none font-medium">Occasion</legend>
+            <legend className="mb-1.5 text-sm leading-none font-medium">Occasion{aiFields.has("occasions") && <AiMark />}</legend>
             <div className="flex flex-wrap gap-1.5">
               {OCCASIONS.map((o) => (
-                <button key={o} type="button" className="chip" data-active={occasions.includes(o)} aria-pressed={occasions.includes(o)} onClick={() => setOccasions(toggleIn(occasions, o))}>{o}</button>
+                <button key={o} type="button" className="chip" data-active={occasions.includes(o)} aria-pressed={occasions.includes(o)} onClick={() => { unmark("occasions"); setOccasions(toggleIn(occasions, o)); }}>{o}</button>
               ))}
             </div>
           </fieldset>
@@ -416,6 +522,7 @@ export function ItemForm({ brands, platforms, defaultCurrency, item, comps = [] 
           </Button>
         )}
       </div>
+      {aiSheetOpen && aiTags && <AiTagSheet tags={aiTags} onApply={applyTags} onClose={() => setAiSheetOpen(false)} />}
     </form>
   );
 }

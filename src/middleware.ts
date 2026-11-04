@@ -54,6 +54,6 @@ export async function middleware(request: NextRequest) {
 export const config = {
   // Skip static assets and PWA files, which must load without a session.
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|sw.js|manifest.webmanifest|icons/|placeholders/).*)",
+    "/((?!_next/static|_next/image|favicon.ico|sw.js|manifest.webmanifest|robots.txt|icons/|placeholders/).*)",
   ],
 };

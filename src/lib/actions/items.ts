@@ -23,6 +23,7 @@ const itemFields = z.object({
   buy_source: optionalText,
   notes: optionalText,
   tags: z.array(z.string().trim().min(1).max(60)).max(30).default([]),
+  color_primary: z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable().optional(),
   subcategory: optionalText,
   colors: z.array(z.string().trim().min(1).max(60)).max(12).default([]),
   seasons: z.array(z.string().max(30)).max(4).default([]),

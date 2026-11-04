@@ -71,3 +71,21 @@ export function queueCutout(photo: Blob): Promise<Blob> {
   tail = job.then(done, done);
   return job;
 }
+
+/** A small JPEG for AI tagging. Plenty for recognising a garment, and cheaper to send. */
+export async function photoForAi(file: Blob): Promise<Blob> {
+  return imageCompression(file as File, { maxSizeMB: 0.8, maxWidthOrHeight: 1024, initialQuality: 0.8, fileType: "image/jpeg", useWebWorker: false });
+}
+
+/** The garment's dominant colour. Pass a cutout when there is one, so the background doesn't count. */
+export async function dominantColor(src: string): Promise<string | null> {
+  try {
+    const { Vibrant } = await import("node-vibrant/browser");
+    const palette = await Vibrant.from(src).getPalette();
+    const swatches = Object.values(palette).filter((swatch) => swatch !== null);
+    if (swatches.length === 0) return null;
+    return swatches.reduce((best, swatch) => (swatch.population > best.population ? swatch : best)).hex;
+  } catch {
+    return null;
+  }
+}

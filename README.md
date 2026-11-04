@@ -63,12 +63,12 @@ If the account already has items, the script stops without changing anything. `n
 npm run dev
 ```
 
-Open http://localhost:3000 and sign in with your seed account, or sign up.
+Open http://localhost:3000 and sign in with your seed account.
 
 ## Before you use it for real
 
 - **Set your fees.** New accounts get a few platforms at 0% in **Settings**. Enter your actual rates, because the sold dialog uses them for its fee preset.
-- **Close signups.** Once your account exists, turn off "Allow new users to sign up" under Authentication in Supabase. Row level security keeps each account's data separate, but this is a personal app.
+- **Close signups.** The app has no sign-up form. Create accounts under Authentication in Supabase, then turn off "Allow new users to sign up" there, because the sign-up API stays open until you do.
 
 ## Deploy to Vercel
 
@@ -106,6 +106,15 @@ Build an outfit in either of two ways, and switch between them at any time:
 Each day has one log: an outfit, its pieces, an optional mirror photo, and the weather if it was logged that day. Logging a wear anywhere in the app writes to that day's log, and a database trigger keeps the `wears` table that cost per wear reads in step.
 
 Weather comes from [Open-Meteo](https://open-meteo.com), which needs no key. Your saved coordinates or city name are sent to it from the server, and nothing else.
+
+## AI
+
+Add `ANTHROPIC_API_KEY` to `.env.local` to turn on two features. Everything else works without it. AI calls only run on the server, and the key never reaches the browser.
+
+- **Tagging:** adding a photo sends a small copy to Claude (`claude-haiku-5-5`), which suggests a category, colours and more. Nothing is applied until you confirm, and it returns blank rather than guessing. It never suggests a brand; text it can read on a label is shown, and you choose whether to use it.
+- **Generate outfit:** sends your personal items' tags, the weather, and your chosen occasion and anchor piece. It returns item ids and a short reason, and the ids are checked against your items before use.
+
+Without a key, colours still come from the photo itself, using `node-vibrant` on the device. To add another provider, implement `VisionProvider` and `LLMProvider` in `src/lib/ai/providers.ts`.
 
 ## Rules the database enforces
 

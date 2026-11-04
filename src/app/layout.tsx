@@ -11,6 +11,7 @@ export const metadata: Metadata = {
   title: { default: "Vitrine", template: "%s · Vitrine" },
   description: "Personal wardrobe and resale profit tracker.",
   applicationName: "Vitrine",
+  robots: { index: false, follow: false },
   appleWebApp: { capable: true, title: "Vitrine", statusBarStyle: "black-translucent" },
   icons: { apple: "/icons/icon-192.png" },
 };
