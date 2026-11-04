@@ -92,6 +92,15 @@ To install it on a phone, open the deployed site and choose **Add to Home Screen
 - **Lots** split their total cost evenly across their items, with leftover cents going to the oldest items. An item's cost is set by its lot, and changing the total also updates the profit of items already sold.
 - **Unworn items** are Personal items with no wear in 6 months, counted from the purchase date if never worn.
 
+## Outfits
+
+Build an outfit in either of two ways, and switch between them at any time:
+
+- **Slots:** swipe through one row per slot (outerwear, tops, bottoms, shoes, accessories). Each row holds one piece or none.
+- **Canvas:** drag, resize, rotate and layer pieces on a 3:4 canvas. It uses cutouts where they exist. Placements are stored as fractions of the canvas, so an outfit looks the same on any screen.
+
+`react-konva` is pinned to 19.0.10 because newer versions need React 19.2 or later. It can move up when React does.
+
 ## Rules the database enforces
 
 - An item is `sold` only if it has a sale. Record a sale to sell it, and delete the sale to undo that.

@@ -1,5 +1,5 @@
 // Sample data: 15 made-up items across every status, plus sales, listings, wears,
-// an outfit, expenses and a wishlist. Local mode loads it on first run, and
+// outfits, expenses and a wishlist. Local mode loads it on first run, and
 // scripts/seed.ts loads it into Supabase.
 
 // Works with both the Supabase client and the local client.
@@ -65,8 +65,8 @@ const ITEMS: SeedItem[] = [
 
   // In stock
   { key: "knit", brand: "Margaret Howell", name: "Merino crewneck", category: "Tops", size: "L", color: "Navy", condition: 9, price: 60, bought: 20, source: "Tutti", tags: ["merino"], image: "top" },
-  { key: "jeans", brand: "Acne Studios", name: "1996 straight jeans", category: "Bottoms", size: "32/32", color: "Indigo", condition: 8, price: 75, currency: "EUR", chf: 70.5, bought: 12, source: "Vinted", tags: ["denim"], image: "bottom" },
-  { key: "tote", brand: "Lemaire", name: "Canvas tote", category: "Accessories", size: "One size", color: "Ecru", condition: 7, price: 90, bought: 6, source: "Thrift store", tags: ["canvas"], image: "bag" },
+  { key: "jeans", brand: "Acne Studios", name: "1996 straight jeans", category: "Bottoms", size: "32/32", color: "Indigo", condition: 8, price: 75, currency: "EUR", chf: 70.5, bought: 12, source: "Vinted", tags: ["denim"], image: "bottom", personal: true, wears: [3, 12, 33] },
+  { key: "tote", brand: "Lemaire", name: "Canvas tote", category: "Accessories", size: "One size", color: "Ecru", condition: 7, price: 90, bought: 6, source: "Thrift store", tags: ["canvas"], image: "bag", personal: true, wears: [5, 40] },
 
   // Listed
   { key: "parka", brand: "Arc'teryx", name: "Shell parka", category: "Outerwear", size: "M", color: "Black", condition: 8, price: 210, bought: 110, source: "Ricardo", tags: ["gore-tex", "technical"], image: "outerwear", listing: { platform: "Grailed", price: 390, days: 75 } },
@@ -236,14 +236,27 @@ export async function seedSampleData(supabase: Client, userId: string): Promise<
     "Wishlist",
   );
 
-  const outfit = check(
-    await supabase.from("outfits").insert({ user_id: userId, name: "Office, cold day" }).select("id").single(),
-    "Outfit",
+  const canvas = check(
+    await supabase.from("outfits").insert({ user_id: userId, name: "Office, cold day", mode: "canvas", occasion: "Work", canvas_data: { version: 1 } }).select("id").single(),
+    "Canvas outfit",
+  ) as { id: string };
+  check(
+    await supabase.from("outfit_items").insert([
+      { outfit_id: canvas.id, item_id: ids.get("coat"), position: 0, x: 0.33, y: 0.36, scale: 0.6, rotation: -4, z_index: 0 },
+      { outfit_id: canvas.id, item_id: ids.get("shirt"), position: 1, x: 0.68, y: 0.3, scale: 0.46, rotation: 5, z_index: 1 },
+      { outfit_id: canvas.id, item_id: ids.get("boots"), position: 2, x: 0.68, y: 0.8, scale: 0.42, rotation: 0, z_index: 2 },
+    ]),
+    "Canvas outfit items",
+  );
+
+  const slots = check(
+    await supabase.from("outfits").insert({ user_id: userId, name: "Weekend", mode: "slots", occasion: "Everyday", canvas_data: { version: 1 } }).select("id").single(),
+    "Slot outfit",
   ) as { id: string };
   check(
     await supabase.from("outfit_items").insert(
-      ["coat", "shirt", "boots"].map((key, position) => ({ outfit_id: outfit.id, item_id: ids.get(key), position })),
+      ["shirt", "jeans", "boots", "tote"].map((key, position) => ({ outfit_id: slots.id, item_id: ids.get(key), position, z_index: position })),
     ),
-    "Outfit items",
+    "Slot outfit items",
   );
 }

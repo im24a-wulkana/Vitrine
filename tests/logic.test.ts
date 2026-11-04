@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { guessMapping, mapRow, parseAmount, parseCsv, parseDate, toCsv, type ColumnMapping } from "../src/lib/csv";
 import { daysBetween, imageFitClass, rankBrands } from "../src/lib/format";
 import { closetTab } from "../src/lib/types";
+import { clampPosition, defaultPlacement, moveLayer, pieceInSlot, replaceSlot, slotFor } from "../src/lib/outfits";
 import {
   costPerWear, feeFor, groupSales, isUnworn, listingAgeDays, lotSummary, maxBuyPrice, netProfit, priceComps, profitByMonth,
   sellThroughRate, suggestedMarkdown, summarize, yearlySummary, type SaleRow,
@@ -255,4 +256,49 @@ test("size groups skip items with no size", () => {
 
 test("lot summary only counts sold items", () => {
   assert.deepEqual(lotSummary([{ buy_price_chf: 50, sales: { sale_price: 100, net_profit: 40 } }, { buy_price_chf: 50, sales: null }]), { count: 2, sold: 1, revenue: 100, profit: 40, recovered: 90 });
+});
+
+test("every category has a slot, including older names and none at all", () => {
+  assert.equal(slotFor("Outerwear"), "Outerwear");
+  assert.equal(slotFor("Knitwear"), "Tops");
+  assert.equal(slotFor("Activewear"), "Tops");
+  assert.equal(slotFor("Footwear"), "Shoes");
+  assert.equal(slotFor("Bags"), "Accessories");
+  assert.equal(slotFor(null), "Accessories");
+  assert.equal(slotFor("Something else"), "Accessories");
+});
+
+const place = (item_id: string, z_index: number) => ({ item_id, x: 0.5, y: 0.5, scale: 0.5, rotation: 0, z_index });
+
+test("new pieces land on top of the outfit", () => {
+  assert.equal(defaultPlacement("a", "Tops").z_index, 0);
+  assert.equal(defaultPlacement("a", "Tops", [{ z_index: 4 }, { z_index: 1 }]).z_index, 5);
+});
+
+test("a piece can't be dragged off the canvas", () => {
+  assert.deepEqual(clampPosition({ x: -0.2, y: 1.4 }), { x: 0, y: 1 });
+  assert.deepEqual(clampPosition({ x: 0.3, y: 0.6 }), { x: 0.3, y: 0.6 });
+});
+
+test("moving a layer swaps neighbours, renumbers, and stops at the ends", () => {
+  const start = [place("a", 0), place("b", 5), place("c", 9)];
+  const order = (list: { item_id: string; z_index: number }[]) => [...list].sort((x, y) => x.z_index - y.z_index).map((p) => p.item_id).join("");
+  assert.equal(order(moveLayer(start, "a", 1)), "bac");
+  assert.equal(order(moveLayer(start, "c", -1)), "acb");
+  assert.equal(order(moveLayer(start, "c", 1)), "abc");
+  assert.equal(order(moveLayer(start, "a", -1)), "abc");
+  assert.deepEqual(moveLayer(start, "a", 1).map((p) => p.z_index), [0, 1, 2]);
+  assert.equal(moveLayer(start, "missing", 1).length, 3);
+});
+
+test("a slot holds one piece: picking replaces it, and null empties it", () => {
+  const categories: Record<string, string> = { t1: "Tops", t2: "Tops", s1: "Shoes" };
+  const categoryOf = (id: string) => categories[id] ?? null;
+  const start = [place("t1", 0), place("s1", 1)];
+  const swapped = replaceSlot(start, "Tops", "t2", categoryOf);
+  assert.deepEqual(swapped.map((p) => p.item_id).sort(), ["s1", "t2"]);
+  assert.equal(pieceInSlot(swapped, "Tops", categoryOf)?.item_id, "t2");
+  const emptied = replaceSlot(start, "Tops", null, categoryOf);
+  assert.deepEqual(emptied.map((p) => p.item_id), ["s1"]);
+  assert.equal(pieceInSlot(emptied, "Tops", categoryOf), null);
 });

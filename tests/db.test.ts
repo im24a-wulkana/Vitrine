@@ -310,3 +310,12 @@ test("RLS: lots are private, and an item can't join someone else's lot", async (
   });
   await db.exec(`delete from public.lots`);
 });
+
+test("outfits default to slots, reject unknown modes, and need a positive scale", async () => {
+  const id = await newItem();
+  const o = await db.query<{ id: string; mode: string }>(`insert into public.outfits (user_id, name) values ($1, 'x') returning id, mode`, [USER_A]);
+  assert.equal(o.rows[0].mode, "slots");
+  await assert.rejects(db.query(`insert into public.outfits (user_id, name, mode) values ($1, 'x', 'collage')`, [USER_A]));
+  await assert.rejects(db.query(`insert into public.outfit_items (outfit_id, item_id, scale) values ($1, $2, 0)`, [o.rows[0].id, id]));
+  await db.exec(`delete from public.outfits`);
+});

@@ -119,6 +119,15 @@ test("photos keep both versions, and existing rows can switch between them", asy
   assert.deepEqual(after, { url: "c.webp", original_url: "o.jpg", cutout_url: "c.webp" });
 });
 
+test("outfits keep their mode and each piece's placement", async () => {
+  const id = await item();
+  const { data } = await client.from("outfits").insert({ name: "Look", mode: "canvas", occasion: "Work", canvas_data: { version: 1 } }).select("id").single();
+  const outfitId = (data as { id: string }).id;
+  await client.from("outfit_items").insert({ outfit_id: outfitId, item_id: id, position: 0, x: 0.25, y: 0.75, scale: 0.4, rotation: -12.5, z_index: 3 });
+  const { data: read } = await client.from("outfits").select("mode, occasion, canvas_data, outfit_items(x, y, scale, rotation, z_index)").eq("id", outfitId).single();
+  assert.deepEqual(read, { mode: "canvas", occasion: "Work", canvas_data: { version: 1 }, outfit_items: [{ x: 0.25, y: 0.75, scale: 0.4, rotation: -12.5, z_index: 3 }] });
+});
+
 test("single and maybeSingle follow Supabase's rules", async () => {
   const missing = "00000000-0000-4000-8000-0000000000ff";
   assert.equal((await client.from("items").select("*").eq("id", missing).maybeSingle()).data, null);
@@ -170,7 +179,7 @@ test("the sample data loads, with the expected mix of statuses and working dashb
   const counts: Record<string, number> = {};
   for (const { status } of data as { status: string }[]) counts[status] = (counts[status] ?? 0) + 1;
   assert.equal((data as unknown[]).length, SAMPLE_ITEM_COUNT);
-  assert.deepEqual(counts, { personal: 3, in_stock: 3, listed: 4, sold: 5 });
+  assert.deepEqual(counts, { personal: 5, in_stock: 1, listed: 4, sold: 5 });
 
   const sales = await getSaleRows(asSupabase());
   assert.equal(sales.length, 5);

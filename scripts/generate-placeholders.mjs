@@ -15,6 +15,6 @@ const SHAPES = {
 for (const [name, path] of Object.entries(SHAPES)) {
   writeFileSync(
     `public/placeholders/${name}.svg`,
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 450 562" preserveAspectRatio="xMidYMid slice"><path d="${path}" fill="#8a8a8a24" stroke="#8a8a8a" stroke-width="1.25" stroke-linejoin="round"/></svg>\n`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="450" height="562" viewBox="0 0 450 562" preserveAspectRatio="xMidYMid slice"><path d="${path}" fill="#77777730" stroke="#777777" stroke-width="1.5" stroke-linejoin="round"/></svg>\n`,
   );
 }

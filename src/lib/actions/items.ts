@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { defaultPlacement } from "@/lib/outfits";
 import { getUser } from "@/lib/supabase/server";
 import type { ActionResult } from "@/lib/types";
 
@@ -204,13 +205,17 @@ export async function setFavorite(id: string, favorite: boolean): Promise<Action
 export async function addToOutfit(outfitId: string, itemId: string): Promise<ActionResult> {
   const { supabase, user } = await getUser();
   if (!user) return { ok: false, error: "Not signed in" };
-  const { data: existing, error: readError } = await supabase.from("outfit_items").select("position").eq("outfit_id", outfitId);
+  const [{ data: existing, error: readError }, { data: item }] = await Promise.all([
+    supabase.from("outfit_items").select("position, z_index").eq("outfit_id", outfitId),
+    supabase.from("items").select("category").eq("id", itemId).maybeSingle(),
+  ]);
   if (readError) return { ok: false, error: readError.message };
-  const positions = (existing ?? []).map((row: { position: number }) => row.position);
+  const rows = (existing ?? []) as { position: number; z_index: number }[];
+  const positions = rows.map((row) => row.position);
   const { error } = await supabase
     .from("outfit_items")
     .upsert(
-      { outfit_id: outfitId, item_id: itemId, position: positions.length ? Math.max(...positions) + 1 : 0 },
+      { ...defaultPlacement(itemId, item?.category ?? null, rows), outfit_id: outfitId, position: positions.length ? Math.max(...positions) + 1 : 0 },
       { onConflict: "outfit_id,item_id", ignoreDuplicates: true },
     );
   if (error) return { ok: false, error: error.message };

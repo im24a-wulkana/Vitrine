@@ -1,138 +1,124 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { OutfitEditor, type OutfitDraft, type OutfitMode } from "@/components/outfit-editor";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { deleteOutfit, saveOutfit, wearOutfit } from "@/lib/actions/wardrobe";
+import { deleteOutfit, wearOutfit } from "@/lib/actions/wardrobe";
 import { imageFitClass, localDate, primaryImage } from "@/lib/format";
-import { cn } from "@/lib/utils";
+import { defaultPlacement, slotFor, SLOTS, type Placement } from "@/lib/outfits";
 
 export interface OutfitPiece {
   id: string;
   brand: string;
   name: string;
   status: string;
+  category: string | null;
   item_images: { url: string; is_primary: boolean; position: number; cutout_url: string | null }[];
 }
 
 export interface OutfitRow {
   id: string;
   name: string;
-  outfit_items: { item_id: string; position: number }[];
+  mode: OutfitMode;
+  occasion: string | null;
+  outfit_items: (Placement & { position: number })[];
+}
+
+/** A saved canvas, drawn with plain elements. Only the editor needs Konva. */
+function CanvasPreview({ items, byId }: { items: Placement[]; byId: Map<string, OutfitPiece> }) {
+  return (
+    <div className="relative aspect-[3/4] h-72 max-w-full overflow-hidden rounded-lg bg-[#d4d4d4]">
+      {[...items]
+        .sort((a, b) => a.z_index - b.z_index)
+        .map((item) => {
+          const piece = byId.get(item.item_id);
+          const shown = primaryImage(piece?.item_images);
+          const src = piece?.item_images.find((i) => i.url === shown)?.cutout_url ?? shown;
+          if (!src) return null;
+          return (
+            <img
+              key={item.item_id}
+              src={src}
+              alt={piece?.name ?? ""}
+              loading="lazy"
+              className="absolute max-w-none"
+              style={{
+                left: `${item.x * 100}%`,
+                top: `${item.y * 100}%`,
+                width: `${item.scale * 100}%`,
+                transform: `translate(-50%, -50%) rotate(${item.rotation}deg)`,
+              }}
+            />
+          );
+        })}
+    </div>
+  );
 }
 
 export function OutfitBuilder({ pieces, outfits, startWith }: { pieces: OutfitPiece[]; outfits: OutfitRow[]; startWith?: string }) {
-  const [editing, setEditing] = useState<{ id?: string } | null>(startWith ? {} : null);
-  const [name, setName] = useState("");
-  const [chosen, setChosen] = useState<string[]>(startWith ? [startWith] : []);
+  const byId = useMemo(() => new Map(pieces.map((p) => [p.id, p])), [pieces]);
+  const [draft, setDraft] = useState<OutfitDraft | null>(() => {
+    const piece = startWith ? pieces.find((p) => p.id === startWith) : undefined;
+    return piece ? { name: "", occasion: null, mode: "slots", placements: [defaultPlacement(piece.id, piece.category)] } : null;
+  });
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
-  const byId = useMemo(() => new Map(pieces.map((p) => [p.id, p])), [pieces]);
-  // Your personal pieces, plus anything already in this outfit (for example, added from the closet).
-  const selectable = pieces.filter((p) => p.status === "personal" || chosen.includes(p.id));
+  if (draft) {
+    return <OutfitEditor draft={draft} pieces={pieces} onDone={() => setDraft(null)} />;
+  }
 
-  function openEditor(outfit?: OutfitRow) {
-    setEditing({ id: outfit?.id });
-    setName(outfit?.name ?? "");
-    setChosen(outfit ? [...outfit.outfit_items].sort((a, b) => a.position - b.position).map((i) => i.item_id).filter((id) => byId.has(id)) : []);
-    setError(null);
+  function edit(outfit: OutfitRow) {
     setNotice(null);
-  }
-
-  function togglePiece(id: string) {
-    setChosen((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  }
-
-  function save() {
-    setError(null);
-    start(async () => {
-      const res = await saveOutfit({ id: editing?.id, name, itemIds: chosen });
-      if (!res.ok) return setError(res.error);
-      setEditing(null);
+    setDraft({
+      id: outfit.id,
+      name: outfit.name,
+      occasion: outfit.occasion,
+      mode: outfit.mode,
+      placements: outfit.outfit_items
+        .filter((i) => byId.has(i.item_id))
+        .map(({ item_id, x, y, scale, rotation, z_index }) => ({ item_id, x, y, scale, rotation, z_index })),
     });
-  }
-
-  if (editing) {
-    return (
-      <div className="flex flex-col gap-5">
-        <h1 className="page-title">{editing.id ? "Edit outfit" : "New outfit"}</h1>
-        <Input aria-label="Outfit name" placeholder="Outfit name" value={name} onChange={(e) => setName(e.target.value)} />
-
-        {chosen.length > 0 && (
-          <ol aria-label="Selected pieces" className="no-scrollbar -mx-4 flex gap-1 overflow-x-auto px-4">
-            {chosen.map((id) => {
-              const image = primaryImage(byId.get(id)?.item_images);
-              return (
-                <li key={id} className="aspect-[3/4] overflow-hidden rounded-lg h-28 shrink-0 bg-muted">
-                  {image && <img src={image} alt={byId.get(id)?.name ?? ""} className={`size-full ${imageFitClass(byId.get(id)?.item_images)}`} />}
-                </li>
-              );
-            })}
-          </ol>
-        )}
-
-        {selectable.length === 0 ? (
-          <p className="text-muted-foreground">Outfits use your personal items. Mark some items as Personal first.</p>
-        ) : (
-          <ul className="grid grid-cols-3 gap-2 md:grid-cols-5">
-            {selectable.map((piece) => {
-              const image = primaryImage(piece.item_images);
-              const order = chosen.indexOf(piece.id);
-              return (
-                <li key={piece.id}>
-                  <button type="button" aria-pressed={order >= 0} className="w-full text-left" onClick={() => togglePiece(piece.id)}>
-                    <span className={cn("relative block aspect-[3/4] overflow-hidden rounded-lg bg-muted", order >= 0 && "outline-2 -outline-offset-2 outline-foreground")}>
-                      {image && <img src={image} alt="" loading="lazy" className={`size-full ${imageFitClass(piece.item_images)}`} />}
-                      {order >= 0 && <span className="num absolute top-0 left-0 grid size-6 place-items-center bg-foreground text-xs text-background">{order + 1}</span>}
-                    </span>
-                    <span className="eyebrow mt-1 block truncate">{piece.brand}</span>
-                    <span className="block truncate text-xs">{piece.name}</span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-
-        {error && <p role="alert" className="text-sm font-medium">{error}</p>}
-        <div className="pb-safe sticky bottom-16 grid grid-cols-2 gap-2 border-t bg-background py-3 md:bottom-0">
-          <Button variant="outline" onClick={() => setEditing(null)}>Cancel</Button>
-          <Button disabled={pending} onClick={save}>{pending ? "Saving…" : "Save outfit"}</Button>
-        </div>
-      </div>
-    );
   }
 
   return (
     <div className="flex flex-col gap-6">
       <header className="flex items-end justify-between gap-4">
         <h1 className="page-title">Outfits</h1>
-        <Button onClick={() => openEditor()}>New outfit</Button>
+        <Button onClick={() => { setNotice(null); setDraft({ name: "", occasion: null, mode: "slots", placements: [] }); }}>New outfit</Button>
       </header>
-      {notice && <p role="status" className="border border-foreground px-3 py-2 text-sm">{notice}</p>}
+      {notice && <p role="status" className="rounded-lg border border-foreground px-3 py-2 text-sm">{notice}</p>}
       {error && <p role="alert" className="text-sm font-medium">{error}</p>}
       {outfits.length === 0 ? (
         <p className="py-12 page-title">No outfits yet.</p>
       ) : (
         <ul className="flex flex-col gap-8">
           {outfits.map((outfit) => {
-            const items = [...outfit.outfit_items].sort((a, b) => a.position - b.position);
+            const inOrder = [...outfit.outfit_items].sort(
+              (a, b) => SLOTS.indexOf(slotFor(byId.get(a.item_id)?.category ?? null)) - SLOTS.indexOf(slotFor(byId.get(b.item_id)?.category ?? null)),
+            );
             return (
               <li key={outfit.id}>
-                <h2 className="text-xl font-bold tracking-tight uppercase">{outfit.name}</h2>
-                <div className="no-scrollbar -mx-4 mt-2 flex gap-1 overflow-x-auto px-4">
-                  {items.map(({ item_id }) => {
-                    const piece = byId.get(item_id);
-                    const image = primaryImage(piece?.item_images);
-                    return (
-                      <div key={item_id} className="aspect-[3/4] overflow-hidden rounded-lg h-40 shrink-0 bg-muted">
-                        {image && <img src={image} alt={piece?.name ?? ""} loading="lazy" className={`size-full ${imageFitClass(piece?.item_images)}`} />}
-                      </div>
-                    );
-                  })}
+                <div className="mb-2 flex items-baseline justify-between gap-3">
+                  <h2 className="min-w-0 truncate text-xl font-bold tracking-tight uppercase">{outfit.name}</h2>
+                  {outfit.occasion && <span className="eyebrow shrink-0">{outfit.occasion}</span>}
                 </div>
+                {outfit.mode === "canvas" ? (
+                  <CanvasPreview items={outfit.outfit_items} byId={byId} />
+                ) : (
+                  <div className="no-scrollbar -mx-4 flex gap-1 overflow-x-auto px-4 md:mx-0 md:px-0">
+                    {inOrder.map(({ item_id }) => {
+                      const piece = byId.get(item_id);
+                      const image = primaryImage(piece?.item_images);
+                      return (
+                        <div key={item_id} className="aspect-[3/4] h-40 shrink-0 overflow-hidden rounded-lg bg-muted">
+                          {image && <img src={image} alt={piece?.name ?? ""} loading="lazy" className={`size-full ${imageFitClass(piece?.item_images)}`} />}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
                 <div className="mt-2 grid grid-cols-[1fr_auto_auto] gap-2">
                   <Button
                     size="sm"
@@ -142,13 +128,14 @@ export function OutfitBuilder({ pieces, outfits, startWith }: { pieces: OutfitPi
                         setError(null);
                         const res = await wearOutfit(outfit.id, localDate());
                         if (!res.ok) return setError(res.error);
-                        setNotice(`Logged today's wear for ${items.length} ${items.length === 1 ? "piece" : "pieces"} in ${outfit.name}.`);
+                        const count = outfit.outfit_items.length;
+                        setNotice(`Logged today's wear for ${count} ${count === 1 ? "piece" : "pieces"} in ${outfit.name}.`);
                       })
                     }
                   >
                     Wearing this today
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => openEditor(outfit)}>Edit</Button>
+                  <Button size="sm" variant="outline" onClick={() => edit(outfit)}>Edit</Button>
                   <Button
                     size="sm"
                     variant="outline"

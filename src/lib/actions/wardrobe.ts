@@ -30,10 +30,21 @@ export async function logWear(itemId: string, wornOn: string): Promise<ActionRes
   return { ok: true, data: { worn } };
 }
 
+const placementSchema = z.object({
+  item_id: z.uuid(),
+  x: z.number().min(0).max(1),
+  y: z.number().min(0).max(1),
+  scale: z.number().positive().max(4),
+  rotation: z.number().finite(),
+  z_index: z.number().int().min(0),
+});
+
 const outfitSchema = z.object({
   id: z.uuid().optional(),
   name: z.string().trim().min(1, "Give the outfit a name").max(200),
-  itemIds: z.array(z.uuid()).min(1, "Pick at least one item").max(40),
+  occasion: z.string().trim().max(60).nullable(),
+  mode: z.enum(["canvas", "slots"]),
+  placements: z.array(placementSchema).min(1, "Pick at least one item").max(40),
 });
 
 export async function saveOutfit(input: z.input<typeof outfitSchema>): Promise<ActionResult> {
@@ -42,22 +53,23 @@ export async function saveOutfit(input: z.input<typeof outfitSchema>): Promise<A
   const { supabase, user } = await getUser();
   if (!user) return { ok: false, error: "Not signed in" };
 
-  const { name, itemIds } = parsed.data;
+  const { name, occasion, mode, placements } = parsed.data;
+  const fields = { name, occasion, mode, canvas_data: { version: 1 } };
   let outfitId = parsed.data.id;
   if (outfitId) {
-    const { error } = await supabase.from("outfits").update({ name }).eq("id", outfitId);
+    const { error } = await supabase.from("outfits").update(fields).eq("id", outfitId);
     if (error) return { ok: false, error: error.message };
     const { error: clearError } = await supabase.from("outfit_items").delete().eq("outfit_id", outfitId);
     if (clearError) return { ok: false, error: clearError.message };
   } else {
-    const { data, error } = await supabase.from("outfits").insert({ name, user_id: user.id }).select("id").single();
+    const { data, error } = await supabase.from("outfits").insert({ ...fields, user_id: user.id }).select("id").single();
     if (error) return { ok: false, error: error.message };
     outfitId = data.id as string;
   }
 
   const { error } = await supabase
     .from("outfit_items")
-    .insert(itemIds.map((item_id, position) => ({ outfit_id: outfitId, item_id, position })));
+    .insert(placements.map((placement, position) => ({ ...placement, outfit_id: outfitId, position })));
   if (error) return { ok: false, error: error.message };
 
   revalidatePath("/outfits");
