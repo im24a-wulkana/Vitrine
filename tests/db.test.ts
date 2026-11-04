@@ -49,7 +49,7 @@ after(async () => {
 });
 
 beforeEach(async () => {
-  await db.exec(`delete from public.items; delete from public.expenses;`);
+  await db.exec(`delete from public.items; delete from public.expenses; delete from public.lots;`);
 });
 
 test("new users get settings and default platforms", async () => {
@@ -220,4 +220,93 @@ test("RLS: anonymous users have no access at all", async () => {
     await assert.rejects(db.query(`select * from public.items`), /permission denied/);
     await assert.rejects(db.query(`insert into public.items (brand, name) values ('x', 'y')`), /permission denied/);
   });
+});
+
+test("a sale flags other platforms' listings for delisting, not the one it sold on", async () => {
+  const id = await newItem();
+  await db.query(`insert into public.listings (item_id, platform) values ($1, 'Vinted'), ($1, 'Grailed'), ($1, 'Unspecified')`, [id]);
+  await db.query(`insert into public.sales (item_id, platform, sale_price) values ($1, 'Vinted', 100)`, [id]);
+  const r = await db.query<{ platform: string; needs_delisting: boolean; delisted_at: Date | null }>(`select platform, needs_delisting, delisted_at from public.listings where item_id = $1 order by platform`, [id]);
+  assert.deepEqual(r.rows.map((l) => [l.platform, l.needs_delisting]), [["Grailed", true], ["Unspecified", false], ["Vinted", false]]);
+  assert.ok(r.rows.every((l) => l.delisted_at));
+});
+
+test("undoing a sale clears its delisting reminders", async () => {
+  const id = await newItem();
+  await db.query(`insert into public.listings (item_id, platform) values ($1, 'Vinted'), ($1, 'Grailed')`, [id]);
+  await db.query(`insert into public.sales (item_id, platform, sale_price) values ($1, 'Vinted', 100)`, [id]);
+  await db.query(`delete from public.sales where item_id = $1`, [id]);
+  const r = await db.query(`select 1 from public.listings where item_id = $1 and needs_delisting`, [id]);
+  assert.equal(r.rows.length, 0);
+});
+
+test("new sales wait to ship", async () => {
+  const id = await newItem();
+  await db.query(`insert into public.sales (item_id, platform, sale_price) values ($1, 'V', 100)`, [id]);
+  const r = await db.query<{ shipping_status: string }>(`select shipping_status from public.sales where item_id = $1`, [id]);
+  assert.equal(r.rows[0].shipping_status, "to_ship");
+});
+
+async function newLot(total: number, user = USER_A) {
+  const r = await db.query<{ id: string }>(`insert into public.lots (user_id, name, total_cost_chf) values ($1, 'Lot', $2) returning id`, [user, total]);
+  return r.rows[0].id;
+}
+const costs = async (lot: string) =>
+  (await db.query<{ buy_price_chf: string }>(`select buy_price_chf from public.items where lot_id = $1 order by created_at, id`, [lot])).rows.map((r) => Number(r.buy_price_chf));
+
+test("a lot's cost splits evenly and the shares add up exactly", async () => {
+  const lot = await newLot(100);
+  for (let i = 0; i < 3; i++) await db.query(`update public.items set lot_id = $1 where id = $2`, [lot, await newItem()]);
+  const shares = await costs(lot);
+  assert.deepEqual([...shares].sort(), [33.33, 33.33, 33.34]);
+  assert.equal(Math.round(shares.reduce((a, b) => a + b, 0) * 100) / 100, 100);
+});
+
+test("foreign-currency items become CHF when they join a lot", async () => {
+  const lot = await newLot(50);
+  const id = await newItem(USER_A, `buy_price, buy_currency, buy_price_chf`, `80, 'EUR', 75`);
+  await db.query(`update public.items set lot_id = $1 where id = $2`, [lot, id]);
+  const r = await db.query<{ buy_price: string; buy_currency: string; buy_price_chf: string }>(`select buy_price, buy_currency, buy_price_chf from public.items where id = $1`, [id]);
+  assert.deepEqual([Number(r.rows[0].buy_price), r.rows[0].buy_currency, Number(r.rows[0].buy_price_chf)], [50, "CHF", 50]);
+});
+
+test("changing a lot's total updates the profit of sales already made", async () => {
+  const lot = await newLot(100);
+  const a = await newItem();
+  const b = await newItem();
+  await db.query(`update public.items set lot_id = $1 where id in ($2, $3)`, [lot, a, b]);
+  await db.query(`insert into public.sales (item_id, platform, sale_price) values ($1, 'V', 200)`, [a]);
+  const profit = async () => Number((await db.query<{ net_profit: string }>(`select net_profit from public.sales where item_id = $1`, [a])).rows[0].net_profit);
+  assert.equal(await profit(), 150);
+  await db.query(`update public.lots set total_cost_chf = 300 where id = $1`, [lot]);
+  assert.equal(await profit(), 50);
+});
+
+test("removing an item re-splits the rest; deleting a lot keeps its items and costs", async () => {
+  const lot = await newLot(90);
+  const ids = [await newItem(), await newItem(), await newItem()];
+  await db.query(`update public.items set lot_id = $1 where id = any($2)`, [lot, ids]);
+  await db.query(`update public.items set lot_id = null where id = $1`, [ids[0]]);
+  assert.deepEqual(await costs(lot), [45, 45]);
+  await db.query(`delete from public.lots where id = $1`, [lot]);
+  const r = await db.query<{ lot_id: string | null; buy_price_chf: string }>(`select lot_id, buy_price_chf from public.items where id = any($1)`, [ids]);
+  assert.equal(r.rows.length, 3);
+  assert.ok(r.rows.every((x) => x.lot_id === null));
+  assert.deepEqual(r.rows.map((x) => Number(x.buy_price_chf)).sort(), [30, 45, 45]);
+});
+
+test("RLS: lots are private, and an item can't join someone else's lot", async () => {
+  const theirs = await newLot(100, USER_B);
+  const mine = await newItem(USER_A);
+  await asUser(USER_A, async () => {
+    assert.equal((await db.query(`select 1 from public.lots where id = $1`, [theirs])).rows.length, 0);
+    await assert.rejects(db.query(`update public.items set lot_id = $1 where id = $2`, [theirs, mine]), /does not exist/);
+    const own = await db.query<{ id: string }>(`insert into public.lots (name, total_cost_chf) values ('Mine', 80) returning id`);
+    await db.query(`update public.items set lot_id = $1 where id = $2`, [own.rows[0].id, mine]);
+    const r = await db.query<{ buy_price_chf: string }>(`select buy_price_chf from public.items where id = $1`, [mine]);
+    assert.equal(Number(r.rows[0].buy_price_chf), 80);
+    await db.query(`update public.items set lot_id = null where id = $1`, [mine]);
+    await db.query(`delete from public.lots where id = $1`, [own.rows[0].id]);
+  });
+  await db.exec(`delete from public.lots`);
 });

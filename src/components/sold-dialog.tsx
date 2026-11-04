@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { confirmDelisted } from "@/lib/actions/business";
 import { recordSale } from "@/lib/actions/sales";
 import { localDate, money, signedMoney } from "@/lib/format";
 import { feeFor, netProfit } from "@/lib/metrics";
@@ -40,6 +41,9 @@ export function SoldDialog({ target, platforms, onClose }: Props) {
   const [soldAt, setSoldAt] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  // After a sale: listings on other platforms that the user still has to take down.
+  const [toDelist, setToDelist] = useState<{ id: string; platform: string }[]>([]);
+  const [delisted, setDelisted] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!target) return;
@@ -53,7 +57,12 @@ export function SoldDialog({ target, platforms, onClose }: Props) {
     setShipping("");
     setSoldAt(localDate());
     setError(null);
-  }, [target, platforms]);
+    setToDelist([]);
+    setDelisted(new Set());
+    // Only when a different item opens. The page refreshes its data right after a
+    // sale, and that must not wipe the delist prompt that follows it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target?.id]);
 
   // The fee preset follows platform and price until the user types their own.
   function recalc(nextPlatform: string, nextPrice: string) {
@@ -80,8 +89,55 @@ export function SoldDialog({ target, platforms, onClose }: Props) {
         sold_at: soldAt,
       });
       if (!res.ok) return setError(res.error);
+      if (res.data.toDelist.length > 0) setToDelist(res.data.toDelist);
+      else onClose();
+    });
+  }
+
+  function finishDelisting() {
+    start(async () => {
+      const res = await confirmDelisted([...delisted]);
+      if (!res.ok) return setError(res.error);
       onClose();
     });
+  }
+
+  if (target && toDelist.length > 0) {
+    return (
+      <Dialog open onOpenChange={(open) => !open && onClose()}>
+        <DialogContent className="sheet">
+          <DialogHeader className="text-left">
+            <DialogTitle>Sold. Now delist it.</DialogTitle>
+            <DialogDescription>{target.name} is still live on these platforms. Take it down, then tick each one.</DialogDescription>
+          </DialogHeader>
+          <ul className="flex flex-col gap-1">
+            {toDelist.map((listing) => (
+              <li key={listing.id}>
+                <label className="flex min-h-11 items-center gap-3 text-sm">
+                  <input
+                    type="checkbox"
+                    className="size-5 accent-foreground"
+                    checked={delisted.has(listing.id)}
+                    onChange={() =>
+                      setDelisted((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(listing.id)) next.delete(listing.id);
+                        else next.add(listing.id);
+                        return next;
+                      })
+                    }
+                  />
+                  {listing.platform}
+                </label>
+              </li>
+            ))}
+          </ul>
+          {error && <p role="alert" className="text-sm font-medium">{error}</p>}
+          <p className="text-xs text-muted-foreground">Anything left unticked stays on your Shipping page as a reminder.</p>
+          <Button type="button" size="lg" disabled={pending} onClick={finishDelisting}>{pending ? "Saving…" : "Done"}</Button>
+        </DialogContent>
+      </Dialog>
+    );
   }
 
   return (

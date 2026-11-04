@@ -5,20 +5,23 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CompHint } from "@/components/comp-hint";
 import { SoldDialog, type SoldTarget } from "@/components/sold-dialog";
 import { bulkSetStatus, deleteItems } from "@/lib/actions/items";
 import { closeListing, createListing, undoSale, updateListingPrice } from "@/lib/actions/sales";
 import { logWear } from "@/lib/actions/wardrobe";
 import { localDate } from "@/lib/format";
+import type { CompRow } from "@/lib/metrics";
 import type { Item, Listing, Platform } from "@/lib/types";
 
 interface Props {
   item: Item & { wears: { worn_on: string }[] };
   listings: Listing[];
   platforms: Platform[];
+  comps: CompRow[];
 }
 
-export function ItemActions({ item, listings, platforms }: Props) {
+export function ItemActions({ item, listings, platforms, comps }: Props) {
   const router = useRouter();
   const [selling, setSelling] = useState<SoldTarget | null>(null);
   const [listingOpen, setListingOpen] = useState(false);
@@ -77,6 +80,7 @@ export function ItemActions({ item, listings, platforms }: Props) {
             >
               <Input aria-label="New price" inputMode="decimal" className="num" autoFocus value={price} onChange={(e) => setPrice(e.target.value.replace(",", "."))} />
               <Button type="submit" disabled={pending}>Save</Button>
+              <div className="col-span-2"><CompHint rows={comps} brand={item.brand} category={item.category} onUse={(p) => setPrice(String(p))} /></div>
             </form>
           ) : (
             <div className="grid grid-cols-2 gap-2">
@@ -108,6 +112,7 @@ export function ItemActions({ item, listings, platforms }: Props) {
             </select>
             <Input aria-label="List price" inputMode="decimal" placeholder="Price" className="num" value={price} onChange={(e) => setPrice(e.target.value.replace(",", "."))} />
             <Button type="submit" disabled={pending}>List</Button>
+            <div className="col-span-3"><CompHint rows={comps} brand={item.brand} category={item.category} onUse={(p) => setPrice(String(p))} /></div>
           </form>
         ) : (
           <Button type="button" variant="outline" onClick={() => { setPrice(""); setListingOpen(true); }}>

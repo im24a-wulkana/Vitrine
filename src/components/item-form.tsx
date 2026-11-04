@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Camera, ImagePlus } from "lucide-react";
 import Link from "next/link";
+import { CompHint } from "@/components/comp-hint";
 import { CutoutProgress, PhotoTile } from "@/components/photo-tile";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { createItem, updateItem } from "@/lib/actions/items";
 import { localDate, roundMoney } from "@/lib/format";
+import type { CompRow } from "@/lib/metrics";
 import { CATEGORIES, CURRENCIES, MEASUREMENTS, OCCASIONS, SEASONS, type Item, type Measurements, type Platform } from "@/lib/types";
 import { attachPendingCutouts, imagesForSave, usePhotos } from "@/lib/use-photos";
 
@@ -21,9 +23,10 @@ interface Props {
   platforms: Platform[];
   defaultCurrency: string;
   item?: Item; // present when editing
+  comps?: CompRow[];
 }
 
-export function ItemForm({ brands, platforms, defaultCurrency, item }: Props) {
+export function ItemForm({ brands, platforms, defaultCurrency, item, comps = [] }: Props) {
   const router = useRouter();
   const editing = !!item;
   const [itemId, setItemId] = useState(() => item?.id ?? crypto.randomUUID());
@@ -252,15 +255,17 @@ export function ItemForm({ brands, platforms, defaultCurrency, item }: Props) {
       <div className="grid grid-cols-[1fr_6rem] gap-2">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="price">Paid</Label>
-          <Input id="price" inputMode="decimal" className="num" placeholder="0.00" value={price} onChange={(e) => setPrice(e.target.value.replace(",", "."))} />
+          <Input id="price" inputMode="decimal" className="num" placeholder="0.00" disabled={!!item?.lot_id} value={price} onChange={(e) => setPrice(e.target.value.replace(",", "."))} />
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="currency">Currency</Label>
-          <select id="currency" className="field num" value={currency} onChange={(e) => setCurrency(e.target.value)}>
+          <select id="currency" className="field num" disabled={!!item?.lot_id} value={currency} onChange={(e) => setCurrency(e.target.value)}>
             {[...new Set([...CURRENCIES, currency])].map((c) => <option key={c}>{c}</option>)}
           </select>
         </div>
       </div>
+
+      {item?.lot_id && <p className="-mt-4 text-xs text-muted-foreground">This item is in a lot, so its cost comes from the lot.</p>}
 
       {currency !== "CHF" && (
         <div className="flex flex-col gap-1.5">
@@ -306,6 +311,7 @@ export function ItemForm({ brands, platforms, defaultCurrency, item }: Props) {
             <Label htmlFor="list-price">List price</Label>
             <Input id="list-price" inputMode="decimal" className="num" value={listPrice} onChange={(e) => setListPrice(e.target.value.replace(",", "."))} />
           </div>
+          <div className="col-span-2"><CompHint rows={comps} brand={brand} category={category || null} onUse={(p) => setListPrice(String(p))} /></div>
         </div>
       )}
 

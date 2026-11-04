@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { listingAgeDays, suggestedMarkdown } from "./metrics";
 import type { UserSettings } from "./types";
 
-const DEFAULT_SETTINGS = { default_currency: "CHF", aging_threshold_days: 30, markdown_percent: 10 };
+const DEFAULT_SETTINGS = { default_currency: "CHF", aging_threshold_days: 30, markdown_percent: 10, monthly_profit_goal_chf: null };
 
 export async function getSettings(supabase: SupabaseClient, userId: string): Promise<UserSettings> {
   const { data } = await supabase.from("user_settings").select("*").eq("user_id", userId).maybeSingle();

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { DashboardCharts } from "@/components/charts-client";
 import { BUSINESS_LINKS } from "@/lib/business-links";
 import { localDate, money, moneyWhole, percent, signedMoney } from "@/lib/format";
-import { groupSales, profitByMonth, summarize, type Period } from "@/lib/metrics";
+import { groupSales, profitByMonth, sellThroughRate, summarize, type Period } from "@/lib/metrics";
 import { getAgingAlerts, getSettings } from "@/lib/queries";
 import { getExpenseRows, getSaleRows } from "@/lib/sales-data";
 import { requireUser } from "@/lib/supabase/server";
@@ -37,7 +37,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     getSettings(supabase, user.id),
     supabase.from("items").select("buy_price_chf, listings(list_price, delisted_at)").in("status", ["in_stock", "listed"]).limit(20000),
   ]);
-  const alerts = await getAgingAlerts(supabase, settings, today);
+  const [alerts, { count: toShip }, { count: toDelist }] = await Promise.all([
+    getAgingAlerts(supabase, settings, today),
+    supabase.from("sales").select("id", { count: "exact", head: true }).eq("shipping_status", "to_ship"),
+    supabase.from("listings").select("id", { count: "exact", head: true }).eq("needs_delisting", true),
+  ]);
+  const goal = settings.monthly_profit_goal_chf === null ? null : Number(settings.monthly_profit_goal_chf);
+  const monthNet = summarize(sales, expenses, "month", today).netProfit;
 
   const summary = summarize(sales, expenses, period, today);
   const stockRows = (stock ?? []) as { buy_price_chf: number; listings: { list_price: number | null; delisted_at: string | null }[] }[];
@@ -81,7 +87,32 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         <Stat label="Asking total" value={moneyWhole(askingTotal)} note="open listings" />
         <Stat label="Average ROI" value={percent(summary.avgRoi)} note="per sold item" />
         <Stat label="Days to sell" value={summary.avgDaysToSell === null ? "—" : String(Math.round(summary.avgDaysToSell))} note="average" />
+        <Stat label="Sell-through" value={percent(sellThroughRate(sales.length, stockRows.length))} note={`${sales.length} of ${sales.length + stockRows.length}, all time`} />
       </dl>
+
+      {goal !== null && goal > 0 && (
+        <section aria-label="Monthly profit goal">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="eyebrow">Goal this month</h2>
+            <p className="num text-sm">{signedMoney(monthNet)} <span className="text-muted-foreground">/ {moneyWhole(goal)}</span></p>
+          </div>
+          <div role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(Math.min(1, Math.max(0, monthNet / goal)) * 100)} className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+            <div className="h-full bg-foreground" style={{ width: `${Math.min(1, Math.max(0, monthNet / goal)) * 100}%` }} />
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">{monthNet >= goal ? "Reached." : <><span className="num">{money(goal - monthNet)}</span> to go.</>}</p>
+        </section>
+      )}
+
+      {((toShip ?? 0) > 0 || (toDelist ?? 0) > 0) && (
+        <Link href="/shipping" className="flex items-center justify-between gap-3 rounded-lg bg-muted px-3 py-2.5 text-sm">
+          <span>
+            {(toShip ?? 0) > 0 && <><span className="num">{toShip}</span> to ship</>}
+            {(toShip ?? 0) > 0 && (toDelist ?? 0) > 0 && " · "}
+            {(toDelist ?? 0) > 0 && <><span className="num">{toDelist}</span> to delist</>}
+          </span>
+          <span className="underline underline-offset-4">Open</span>
+        </Link>
+      )}
 
       {alerts.length > 0 && (
         <section>
@@ -104,6 +135,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         months={profitByMonth(sales, expenses, today)}
         brands={groupSales(sales, "brand", period, today)}
         platforms={groupSales(sales, "platform", period, today)}
+        sizes={groupSales(sales, "size", period, today)}
       />
     </div>
   );

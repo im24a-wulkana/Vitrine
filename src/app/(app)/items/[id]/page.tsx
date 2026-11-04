@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ItemActions } from "@/components/item-actions";
+import { OfferLog } from "@/components/offer-log";
 import { WearChart } from "@/components/wear-chart";
+import { getCompRows } from "@/lib/sales-data";
 import { daysBetween, imageFitClass, localDate, money, shortDate, signedMoney } from "@/lib/format";
 import { costPerWear } from "@/lib/metrics";
 import { requireUser } from "@/lib/supabase/server";
@@ -11,9 +13,8 @@ type DetailItem = InventoryItem & {
   listings: (Listing & { price_changes: PriceChange[] })[];
   wears: { worn_on: string }[];
   offers: Offer[];
+  lots: { id: string; name: string } | null;
 };
-
-const OFFER_LABEL: Record<Offer["status"], string> = { pending: "Pending", accepted: "Accepted", declined: "Declined", countered: "Countered" };
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -25,13 +26,14 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 export default async function ItemPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { supabase } = await requireUser();
-  const [{ data }, { data: platforms }] = await Promise.all([
+  const [{ data }, { data: platforms }, comps] = await Promise.all([
     supabase
       .from("items")
-      .select("*, item_images(*), listings(*, price_changes(*)), sales(*), wears(worn_on), offers(*, platforms(name))")
+      .select("*, item_images(*), listings(*, price_changes(*)), sales(*), wears(worn_on), offers(*, platforms(name)), lots(id, name)")
       .eq("id", id)
       .maybeSingle(),
     supabase.from("platforms").select("*").order("name"),
+    getCompRows(supabase),
   ]);
   if (!data) notFound();
 
@@ -87,7 +89,13 @@ export default async function ItemPage({ params }: { params: Promise<{ id: strin
           </section>
         )}
 
-        <ItemActions item={item} listings={listings} platforms={(platforms ?? []) as Platform[]} />
+        <ItemActions item={item} listings={listings} platforms={(platforms ?? []) as Platform[]} comps={comps} />
+
+        {item.lots && (
+          <p className="text-sm text-muted-foreground">
+            Part of lot <Link href={`/lots/${item.lots.id}`} className="text-foreground underline underline-offset-4">{item.lots.name}</Link>. Its cost is an equal share of the lot.
+          </p>
+        )}
 
         <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
           {facts.filter(([, v]) => v && v !== "—").map(([label, value]) => (
@@ -115,20 +123,7 @@ export default async function ItemPage({ params }: { params: Promise<{ id: strin
 
         <WearChart wears={item.wears} />
 
-        {item.offers.length > 0 && (
-          <section>
-            <h2 className="eyebrow border-b pb-2">Offers</h2>
-            <ul className="text-sm">
-              {[...item.offers].sort((a, b) => b.created_at.localeCompare(a.created_at)).map((offer) => (
-                <li key={offer.id} className="flex items-baseline justify-between gap-3 border-b py-2">
-                  <span>{OFFER_LABEL[offer.status]}{offer.platforms ? ` · ${offer.platforms.name}` : ""}</span>
-                  <span className="num text-xs text-muted-foreground">{shortDate(offer.created_at)}</span>
-                  <span className="num ml-auto">{money(offer.amount_chf)}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
+        <OfferLog itemId={item.id} offers={item.offers} platforms={(platforms ?? []) as Platform[]} canAdd={item.status !== "sold"} />
 
         {listings.length > 0 && (
           <section>

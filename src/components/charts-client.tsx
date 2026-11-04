@@ -5,7 +5,7 @@ import type { GroupPoint, MonthPoint } from "@/lib/metrics";
 import { ProfitByMonthChart, RankedBars } from "./dashboard-charts";
 
 // Functions cannot cross the server/client boundary, so formatters are chosen here.
-export function DashboardCharts({ months, brands, platforms }: { months: MonthPoint[]; brands: GroupPoint[]; platforms: GroupPoint[] }) {
+export function DashboardCharts({ months, brands, platforms, sizes }: { months: MonthPoint[]; brands: GroupPoint[]; platforms: GroupPoint[]; sizes: GroupPoint[] }) {
   const totalRevenue = platforms.reduce((sum, p) => sum + p.revenue, 0);
   return (
     <div className="grid gap-10 md:grid-cols-2">
@@ -24,6 +24,10 @@ export function DashboardCharts({ months, brands, platforms }: { months: MonthPo
           dataKey="revenue"
           format={(v) => `${moneyWhole(v)} · ${totalRevenue > 0 ? Math.round((v / totalRevenue) * 100) : 0}%`}
         />
+      </section>
+      <section>
+        <h2 className="eyebrow mb-3 border-b pb-2">Sizes by profit</h2>
+        <RankedBars data={sizes} dataKey="profit" format={signedMoney} />
       </section>
     </div>
   );

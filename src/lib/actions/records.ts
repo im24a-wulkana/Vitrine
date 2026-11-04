@@ -80,6 +80,7 @@ const settingsSchema = z.object({
   default_currency: z.string().regex(/^[A-Z]{3}$/),
   aging_threshold_days: z.number().int().min(1, "Threshold must be at least 1 day").max(3650),
   markdown_percent: z.number().gt(0, "Markdown must be above 0%").lt(100, "Markdown must be below 100%"),
+  monthly_profit_goal_chf: z.number().min(0, "The goal can't be negative").nullable(),
 });
 
 export async function saveSettings(input: z.input<typeof settingsSchema>): Promise<ActionResult> {

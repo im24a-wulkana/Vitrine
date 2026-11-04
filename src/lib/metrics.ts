@@ -54,6 +54,7 @@ export interface SaleRow {
   item_cost_chf: number;
   net_profit: number;
   brand: string;
+  size?: string | null;
   /** Start of the clock for days-to-sell: first listing, else purchase date. */
   started_at: string | null;
 }
@@ -134,14 +135,16 @@ export interface GroupPoint {
   count: number;
 }
 
-export function groupSales(sales: SaleRow[], key: "brand" | "platform", period: Period, today: string, limit = 6): GroupPoint[] {
+export function groupSales(sales: SaleRow[], key: "brand" | "platform" | "size", period: Period, today: string, limit = 6): GroupPoint[] {
   const groups = new Map<string, GroupPoint>();
   for (const s of sales.filter((x) => inPeriod(x.sold_at, period, today))) {
-    const g = groups.get(s[key]) ?? { name: s[key], profit: 0, revenue: 0, count: 0 };
+    const name = s[key];
+    if (!name) continue;
+    const g = groups.get(name) ?? { name, profit: 0, revenue: 0, count: 0 };
     g.profit = roundMoney(g.profit + Number(s.net_profit));
     g.revenue = roundMoney(g.revenue + Number(s.sale_price));
     g.count += 1;
-    groups.set(s[key], g);
+    groups.set(name, g);
   }
   return [...groups.values()].sort((a, b) => b.profit - a.profit).slice(0, limit);
 }
@@ -210,4 +213,73 @@ export function isUnworn(lastWorn: string | null, acquired: string, today: strin
 
 function sum(values: number[]): number {
   return values.reduce((a, b) => a + b, 0);
+}
+
+// ---------------------------------------------------------------------------
+// Business tools
+// ---------------------------------------------------------------------------
+
+/**
+ * The highest buy price that still reaches the target return, where
+ * ROI = net profit / cost. Solving for cost: (sale - fees - shipping) / (1 + ROI).
+ * Rounded down, because rounding up would miss the target.
+ */
+export function maxBuyPrice(salePrice: number, fees: number, shipping: number, targetRoi: number): number {
+  const net = salePrice - fees - shipping;
+  if (net <= 0 || targetRoi <= -1) return 0;
+  return Math.floor(roundMoney((net / (1 + targetRoi)) * 100)) / 100;
+}
+
+export interface CompRow {
+  brand: string;
+  category: string | null;
+  sale_price: number;
+}
+
+export interface Comps {
+  scope: string;
+  count: number;
+  median: number;
+  low: number;
+  high: number;
+}
+
+/** Past sale prices, from the most specific match that exists: brand and category, then brand, then category. */
+export function priceComps(rows: CompRow[], brand: string, category: string | null): Comps | null {
+  const wantedBrand = brand.trim().toLowerCase();
+  const sameBrand = (r: CompRow) => wantedBrand !== "" && r.brand.trim().toLowerCase() === wantedBrand;
+  const sameCategory = (r: CompRow) => !!category && r.category === category;
+
+  const scopes: [string, CompRow[]][] = [
+    [`${brand.trim()} ${(category ?? "").toLowerCase()}`, rows.filter((r) => sameBrand(r) && sameCategory(r))],
+    [brand.trim(), rows.filter(sameBrand)],
+    [(category ?? "").toLowerCase(), rows.filter(sameCategory)],
+  ];
+  const match = scopes.find(([, list]) => list.length > 0);
+  if (!match) return null;
+
+  const prices = match[1].map((r) => Number(r.sale_price)).sort((a, b) => a - b);
+  const mid = Math.floor(prices.length / 2);
+  return {
+    scope: match[0],
+    count: prices.length,
+    median: prices.length % 2 ? prices[mid] : roundMoney((prices[mid - 1] + prices[mid]) / 2),
+    low: prices[0],
+    high: prices[prices.length - 1],
+  };
+}
+
+/** Share of everything ever held for resale that has sold. Personal items don't count. */
+export function sellThroughRate(soldCount: number, unsoldStockCount: number): number | null {
+  const total = soldCount + unsoldStockCount;
+  return total > 0 ? soldCount / total : null;
+}
+
+export function lotSummary(items: { buy_price_chf?: number; sales: { sale_price: number; net_profit: number } | null }[]) {
+  const sold = items.filter((i) => i.sales);
+  const revenue = roundMoney(sold.reduce((sum, i) => sum + Number(i.sales?.sale_price ?? 0), 0));
+  const profit = roundMoney(sold.reduce((sum, i) => sum + Number(i.sales?.net_profit ?? 0), 0));
+  // What actually came back after fees and shipping: an item's profit plus its share of the cost.
+  const recovered = roundMoney(sold.reduce((sum, i) => sum + Number(i.sales?.net_profit ?? 0) + Number(i.buy_price_chf ?? 0), 0));
+  return { count: items.length, sold: sold.length, revenue, profit, recovered };
 }

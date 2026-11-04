@@ -111,6 +111,7 @@ export function SettingsView({ settings, platforms, email }: { settings: UserSet
   const [currency, setCurrency] = useState(settings.default_currency);
   const [days, setDays] = useState(String(settings.aging_threshold_days));
   const [markdown, setMarkdown] = useState(String(settings.markdown_percent));
+  const [goal, setGoal] = useState(settings.monthly_profit_goal_chf === null ? "" : String(settings.monthly_profit_goal_chf));
   const [message, setMessage] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
@@ -118,7 +119,7 @@ export function SettingsView({ settings, platforms, email }: { settings: UserSet
     e.preventDefault();
     setMessage(null);
     start(async () => {
-      const res = await saveSettings({ default_currency: currency, aging_threshold_days: Number(days), markdown_percent: Number(markdown) });
+      const res = await saveSettings({ default_currency: currency, aging_threshold_days: Number(days), markdown_percent: Number(markdown), monthly_profit_goal_chf: goal === "" ? null : Number(goal) });
       setMessage(res.ok ? "Saved." : res.error);
     });
   }
@@ -143,6 +144,10 @@ export function SettingsView({ settings, platforms, email }: { settings: UserSet
             <Label htmlFor="markdown">Markdown, %</Label>
             <Input id="markdown" inputMode="decimal" className="num" value={markdown} onChange={(e) => setMarkdown(e.target.value.replace(",", "."))} />
           </div>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="goal">Monthly profit goal, CHF</Label>
+          <Input id="goal" inputMode="decimal" className="num" placeholder="None" value={goal} onChange={(e) => setGoal(e.target.value.replace(",", "."))} />
         </div>
         <p className="text-xs text-muted-foreground">Currency is the default on the add-item form. Profit is always calculated in CHF.</p>
         {message && <p role="status" className="text-sm">{message}</p>}

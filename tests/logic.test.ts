@@ -4,8 +4,8 @@ import { guessMapping, mapRow, parseAmount, parseCsv, parseDate, toCsv, type Col
 import { daysBetween, imageFitClass, rankBrands } from "../src/lib/format";
 import { closetTab } from "../src/lib/types";
 import {
-  costPerWear, feeFor, groupSales, isUnworn, listingAgeDays, netProfit, profitByMonth,
-  suggestedMarkdown, summarize, yearlySummary, type SaleRow,
+  costPerWear, feeFor, groupSales, isUnworn, listingAgeDays, lotSummary, maxBuyPrice, netProfit, priceComps, profitByMonth,
+  sellThroughRate, suggestedMarkdown, summarize, yearlySummary, type SaleRow,
 } from "../src/lib/metrics";
 
 const TODAY = "2026-11-04";
@@ -210,4 +210,49 @@ test("cutouts display whole; photos fill the frame", () => {
   assert.equal(imageFitClass([{ ...photo, url: "a.webp" }]), "cutout");
   assert.equal(imageFitClass([{ ...photo, cutout_url: null }]), "object-cover");
   assert.equal(imageFitClass([]), "object-cover");
+});
+
+test("max buy: hitting exactly the target return", () => {
+  // Sell at 200, 20 fees, 10 shipping: net 170. At 100% ROI, pay 85 and earn 85.
+  assert.equal(maxBuyPrice(200, 20, 10, 1), 85);
+  assert.equal(maxBuyPrice(200, 20, 10, 0), 170);
+  const cost = maxBuyPrice(100, 9, 7, 0.5);
+  assert.equal(cost, 56);
+  assert.ok((100 - 9 - 7 - cost) / cost >= 0.5);
+});
+
+test("max buy: rounds down, and never goes negative", () => {
+  assert.equal(maxBuyPrice(100, 0, 0, 2), 33.33);
+  assert.equal(maxBuyPrice(10, 8, 5, 0.5), 0);
+  assert.equal(maxBuyPrice(0, 0, 0, 0.5), 0);
+});
+
+const COMPS = [
+  { brand: "Acne", category: "Tops", sale_price: 100 },
+  { brand: "Acne", category: "Tops", sale_price: 300 },
+  { brand: "Acne", category: "Shoes", sale_price: 50 },
+  { brand: "Lemaire", category: "Tops", sale_price: 400 },
+];
+
+test("comps use the most specific match available", () => {
+  assert.deepEqual(priceComps(COMPS, "acne ", "Tops"), { scope: "acne tops", count: 2, median: 200, low: 100, high: 300 });
+  assert.equal(priceComps(COMPS, "Acne", "Bottoms")?.count, 3);
+  assert.equal(priceComps(COMPS, "Acne", "Bottoms")?.median, 100);
+  assert.equal(priceComps(COMPS, "Unknown", "Tops")?.count, 3);
+  assert.equal(priceComps(COMPS, "Unknown", "Bottoms"), null);
+  assert.equal(priceComps(COMPS, "", null), null);
+});
+
+test("sell-through counts stock, and is empty with nothing to measure", () => {
+  assert.equal(sellThroughRate(3, 1), 0.75);
+  assert.equal(sellThroughRate(0, 0), null);
+});
+
+test("size groups skip items with no size", () => {
+  const groups = groupSales([sale({ size: "M", net_profit: 10 }), sale({ size: "M", net_profit: 5 }), sale({ size: null, net_profit: 99 })], "size", "all", TODAY);
+  assert.deepEqual(groups.map((g) => [g.name, g.profit]), [["M", 15]]);
+});
+
+test("lot summary only counts sold items", () => {
+  assert.deepEqual(lotSummary([{ buy_price_chf: 50, sales: { sale_price: 100, net_profit: 40 } }, { buy_price_chf: 50, sales: null }]), { count: 2, sold: 1, revenue: 100, profit: 40, recovered: 90 });
 });

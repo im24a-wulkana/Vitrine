@@ -68,6 +68,7 @@ export interface Item {
   storage_location: string | null;
   measurements: Measurements;
   favorite: boolean;
+  lot_id: string | null;
   created_at: string;
 }
 
@@ -78,6 +79,7 @@ export interface Listing {
   list_price: number | null;
   listed_at: string;
   delisted_at: string | null;
+  needs_delisting: boolean;
 }
 
 export interface PriceChange {
@@ -87,6 +89,8 @@ export interface PriceChange {
   new_price: number;
   changed_at: string;
 }
+
+export type ShippingStatus = "to_ship" | "shipped" | "delivered" | "returned";
 
 export interface Sale {
   id: string;
@@ -98,6 +102,8 @@ export interface Sale {
   item_cost_chf: number;
   sold_at: string;
   net_profit: number;
+  tracking_number: string | null;
+  shipping_status: ShippingStatus;
 }
 
 export interface Platform {
@@ -129,6 +135,7 @@ export interface UserSettings {
   default_currency: string;
   aging_threshold_days: number;
   markdown_percent: number;
+  monthly_profit_goal_chf: number | null;
 }
 
 export interface Offer {

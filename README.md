@@ -87,6 +87,9 @@ To install it on a phone, open the deployed site and choose **Add to Home Screen
 - **Days to sell** runs from the first listing to the sale, or from the purchase date if the item was never listed.
 - **Inventory value** is the cost of items that are In stock or Listed. Personal items aren't counted.
 - **Aging alerts** count from the listing date or the latest price change, whichever is newer, so a markdown restarts the clock.
+- **Max buy** is `(sale price - fees - shipping) / (1 + target ROI)`, rounded down.
+- **Sell-through** is sold items divided by sold items plus unsold stock, all time. Personal items aren't counted.
+- **Lots** split their total cost evenly across their items, with leftover cents going to the oldest items. An item's cost is set by its lot, and changing the total also updates the profit of items already sold.
 - **Unworn items** are Personal items with no wear in 6 months, counted from the purchase date if never worn.
 
 ## Rules the database enforces

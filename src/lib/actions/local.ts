@@ -15,7 +15,7 @@ export async function resetLocalData(withSample: boolean): Promise<ActionResult>
   if (!user) return { ok: false, error: "Not signed in" };
 
   try {
-    for (const table of ["items", "expenses", "outfits", "wishlist"]) {
+    for (const table of ["items", "expenses", "outfits", "wishlist", "lots"]) {
       const { error } = await supabase.from(table).delete().eq("user_id", user.id);
       if (error) return { ok: false, error: error.message };
     }

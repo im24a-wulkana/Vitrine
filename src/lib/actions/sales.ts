@@ -14,7 +14,7 @@ const saleSchema = z.object({
   sold_at: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 });
 
-export async function recordSale(input: z.input<typeof saleSchema>): Promise<ActionResult> {
+export async function recordSale(input: z.input<typeof saleSchema>): Promise<ActionResult<{ toDelist: { id: string; platform: string }[] }>> {
   const parsed = saleSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid sale" };
   const { supabase, user } = await getUser();
@@ -24,8 +24,13 @@ export async function recordSale(input: z.input<typeof saleSchema>): Promise<Act
   if (error) {
     return { ok: false, error: error.code === "23505" ? "This item already has a sale" : error.message };
   }
+  const { data: toDelist } = await supabase
+    .from("listings")
+    .select("id, platform")
+    .eq("item_id", parsed.data.item_id)
+    .eq("needs_delisting", true);
   revalidatePath("/", "layout");
-  return { ok: true, data: undefined };
+  return { ok: true, data: { toDelist: toDelist ?? [] } };
 }
 
 export async function undoSale(itemId: string): Promise<ActionResult> {

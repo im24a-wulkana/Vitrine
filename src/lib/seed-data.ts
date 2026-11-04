@@ -93,12 +93,17 @@ export async function seedSampleData(supabase: Client, userId: string): Promise<
         { user_id: userId, name: "Ricardo", fee_percent: 9, fee_fixed: 0 },
         { user_id: userId, name: "Grailed", fee_percent: 9, fee_fixed: 1 },
         { user_id: userId, name: "Vestiaire Collective", fee_percent: 15, fee_fixed: 0 },
+        { user_id: userId, name: "Tutti", fee_percent: 0, fee_fixed: 0 },
+        { user_id: userId, name: "Depop", fee_percent: 10, fee_fixed: 0 },
+        { user_id: userId, name: "Instagram / private", fee_percent: 0, fee_fixed: 0 },
         { user_id: userId, name: "Other", fee_percent: 0, fee_fixed: 0 },
       ],
       { onConflict: "user_id,name" },
     ),
     "Platforms",
   );
+
+  check(await supabase.from("user_settings").upsert({ user_id: userId, monthly_profit_goal_chf: 500 }), "Profit goal");
 
   const ids = new Map<string, string>();
   for (const item of ITEMS) {
@@ -175,6 +180,9 @@ export async function seedSampleData(supabase: Client, userId: string): Promise<
           fees: item.sale.fees,
           shipping_cost: item.sale.shipping,
           sold_at: daysAgo(item.sale.days),
+          // Recent sales are still on their way. Older ones have arrived.
+          shipping_status: item.sale.days <= 5 ? "to_ship" : item.sale.days <= 30 ? "shipped" : "delivered",
+          tracking_number: item.sale.days > 5 && item.sale.days <= 30 ? "99.00.123456.78901234" : null,
         }),
         `Sale ${item.key}`,
       );
@@ -187,6 +195,18 @@ export async function seedSampleData(supabase: Client, userId: string): Promise<
       );
     }
   }
+
+  // Cross-listed: selling this one prompts to delist on the other platform.
+  check(
+    await supabase.from("listings").insert({ item_id: ids.get("sneakers"), platform: "Grailed", list_price: 155, listed_at: stamp(10) }),
+    "Second listing",
+  );
+
+  const lot = check(
+    await supabase.from("lots").insert({ user_id: userId, name: "Estate sale bundle", total_cost_chf: 150, bought_at: daysAgo(20), source: "Estate sale" }).select("id").single(),
+    "Lot",
+  ) as { id: string };
+  check(await supabase.from("items").update({ lot_id: lot.id }).in("id", [ids.get("knit"), ids.get("tote")]), "Lot items");
 
   const { data: grailed } = await supabase.from("platforms").select("id").eq("user_id", userId).eq("name", "Grailed").single();
   check(
