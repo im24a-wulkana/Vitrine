@@ -2,14 +2,14 @@ import Link from "next/link";
 import { AlertRow } from "@/components/alert-row";
 import { localDate } from "@/lib/format";
 import { getAgingAlerts, getSettings } from "@/lib/queries";
-import { requireUser } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/session";
 
 export const metadata = { title: "Aging listings" };
 
 export default async function AlertsPage() {
-  const { supabase, user } = await requireUser();
-  const settings = await getSettings(supabase, user.id);
-  const alerts = await getAgingAlerts(supabase, settings, localDate());
+  const { db, user } = await requireUser();
+  const settings = await getSettings(db, user.id);
+  const alerts = await getAgingAlerts(db, settings, localDate());
 
   return (
     <div className="flex flex-col gap-6">

@@ -2,10 +2,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { csvResponse, unauthorized } from "@/lib/csv-response";
 import { yearlySummary } from "@/lib/metrics";
 import { getExpenseRows, getSaleRows } from "@/lib/sales-data";
-import { getUser } from "@/lib/supabase/server";
+import { getUser } from "@/lib/session";
 
 export async function GET(request: NextRequest) {
-  const { supabase, user } = await getUser();
+  const { db, user } = await getUser();
   if (!user) return unauthorized();
 
   const year = Number(request.nextUrl.searchParams.get("year"));
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Invalid year" }, { status: 400 });
   }
 
-  const [sales, expenses] = await Promise.all([getSaleRows(supabase), getExpenseRows(supabase)]);
+  const [sales, expenses] = await Promise.all([getSaleRows(db), getExpenseRows(db)]);
   const { months, total } = yearlySummary(sales, expenses, year);
 
   const byCategory = new Map<string, number>();

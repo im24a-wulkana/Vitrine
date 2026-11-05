@@ -8,13 +8,16 @@
     "start": "next start -H 127.0.0.1",
     "lint": "eslint",
     "test": "tsx --test tests/*.test.ts",
-    "seed": "tsx scripts/seed.ts"
+    "seed": "tsx scripts/seed.ts",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "add-user": "tsx scripts/add-user.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.5.0",
     "@imgly/background-removal": "^1.7.0",
-    "@supabase/ssr": "^0.12.7",
-    "@supabase/supabase-js": "^2.119.0",
+    "@neon/auth": "0.8.2",
+    "@neondatabase/serverless": "1.2.0",
+    "@vercel/blob": "2.8.2",
     "browser-image-compression": "^2.0.2",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.2",

@@ -1,11 +1,11 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { DbClient } from "@/lib/db/client";
 import { listingAgeDays, suggestedMarkdown } from "./metrics";
 import type { UserSettings } from "./types";
 
 const DEFAULT_SETTINGS = { default_currency: "CHF", aging_threshold_days: 30, markdown_percent: 10, monthly_profit_goal_chf: null, city: null, lat: null, lon: null, theme: null };
 
-export async function getSettings(supabase: SupabaseClient, userId: string): Promise<UserSettings> {
-  const { data } = await supabase.from("user_settings").select("*").eq("user_id", userId).maybeSingle();
+export async function getSettings(db: DbClient, userId: string): Promise<UserSettings> {
+  const { data } = await db.from("user_settings").select("*").eq("user_id", userId).maybeSingle();
   return data ?? { user_id: userId, ...DEFAULT_SETTINGS };
 }
 
@@ -35,8 +35,8 @@ type AgingQueryRow = {
   };
 };
 
-export async function getAgingAlerts(supabase: SupabaseClient, settings: UserSettings, today: string): Promise<AgingAlert[]> {
-  const { data } = await supabase
+export async function getAgingAlerts(db: DbClient, settings: UserSettings, today: string): Promise<AgingAlert[]> {
+  const { data } = await db
     .from("listings")
     .select("id, item_id, platform, list_price, listed_at, price_changes(changed_at), items!inner(brand, name, item_images(url, is_primary, position))")
     .is("delisted_at", null);

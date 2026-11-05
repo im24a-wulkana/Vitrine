@@ -43,7 +43,7 @@ export function usePhotos() {
         const itemId = itemIdFor();
         const compressed = compressPhoto(file);
 
-        const originalPromise = compressed.then((blob) => uploadPhotoBlob(blob, itemId));
+        const originalPromise = compressed.then((blob) => uploadPhotoBlob(blob));
         originalPromise.then(
           (originalUrl) => patch(key, { originalUrl }),
           () => patch(key, { originalFailed: true }),
@@ -53,7 +53,7 @@ export function usePhotos() {
           .then(queueCutout)
           .then(async (blob) => {
             patch(key, { cutoutPreview: URL.createObjectURL(blob) });
-            const cutoutUrl = await uploadPhotoBlob(blob, itemId);
+            const cutoutUrl = await uploadPhotoBlob(blob);
             patch(key, { cutoutUrl, cutoutState: "ready" });
             return cutoutUrl;
           })

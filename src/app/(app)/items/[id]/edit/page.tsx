@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { ItemForm } from "@/components/item-form";
 import { PhotoManager } from "@/components/photo-manager";
 import { rankBrands } from "@/lib/format";
-import { requireUser } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/session";
 import type { InventoryItem } from "@/lib/types";
 
 export const metadata = { title: "Edit item" };
@@ -16,10 +16,10 @@ export default async function EditItemPage({
 }) {
   const { id } = await params;
   const { photos_failed: photosFailed } = await searchParams;
-  const { supabase } = await requireUser();
+  const { db } = await requireUser();
   const [{ data }, { data: rows }] = await Promise.all([
-    supabase.from("items").select("*, item_images(*)").eq("id", id).maybeSingle(),
-    supabase.from("items").select("brand").limit(5000),
+    db.from("items").select("*, item_images(*)").eq("id", id).maybeSingle(),
+    db.from("items").select("brand").limit(5000),
   ]);
   if (!data) notFound();
   const item = data as InventoryItem;

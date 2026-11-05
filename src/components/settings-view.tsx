@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,8 +8,8 @@ import { Label } from "@/components/ui/label";
 import { PushSettings } from "@/components/push-settings";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { resetLocalData } from "@/lib/actions/local";
-import { clearLocation, deletePlatform, savePlatform, saveSettings, setCity, signOut } from "@/lib/actions/records";
-import { isLocalMode } from "@/lib/mode";
+import { clearLocation, deletePlatform, savePlatform, saveSettings, setCity } from "@/lib/actions/records";
+import { signOut } from "@/lib/actions/session";
 import { CURRENCIES, type Platform, type UserSettings } from "@/lib/types";
 
 function PlatformRow({ platform }: { platform?: Platform }) {
@@ -86,7 +85,7 @@ function LocalData() {
     <section className="flex flex-col gap-3">
       <h2 className="eyebrow border-b pb-2">Data on this computer</h2>
       <p className="text-sm text-muted-foreground">
-        Vitrine is in local mode: no account, and everything is saved in the .vitrine-data folder. Add your Supabase keys to .env.local to move to a hosted database. Local data doesn&apos;t move over automatically, so export it first.
+        Vitrine is in local mode: no account, and everything is saved in the .vitrine-data folder. Add your Neon settings to .env.local to move to a hosted database. Local data doesn&apos;t move over automatically, so export it first.
       </p>
       {confirming ? (
         <div className="grid grid-cols-2 gap-2">
@@ -152,8 +151,7 @@ function LocationSettings({ city, hasLocation }: { city: string | null; hasLocat
   );
 }
 
-export function SettingsView({ settings, platforms, email, pushConfigured }: { settings: UserSettings; platforms: Platform[]; email: string; pushConfigured: boolean }) {
-  const router = useRouter();
+export function SettingsView({ settings, platforms, email, pushConfigured, localMode }: { settings: UserSettings; platforms: Platform[]; email: string; pushConfigured: boolean; localMode: boolean }) {
   const [currency, setCurrency] = useState(settings.default_currency);
   const [days, setDays] = useState(String(settings.aging_threshold_days));
   const [markdown, setMarkdown] = useState(String(settings.markdown_percent));
@@ -213,17 +211,13 @@ export function SettingsView({ settings, platforms, email, pushConfigured }: { s
         <p className="mt-2 text-xs text-muted-foreground">New accounts start at 0% because fees vary by account. Enter your own rates. They fill in automatically when you mark an item sold.</p>
       </section>
 
-      {isLocalMode ? <LocalData /> : <section className="flex items-center justify-between gap-4 border-t pt-4 text-sm">
+      {localMode ? <LocalData /> : <section className="flex items-center justify-between gap-4 border-t pt-4 text-sm">
         <span className="truncate text-muted-foreground">{email}</span>
         <Button
           type="button"
           variant="outline"
           size="sm"
-          onClick={async () => {
-            await signOut();
-            router.replace("/login");
-            router.refresh();
-          }}
+          onClick={() => signOut()}
         >
           Sign out
         </Button>

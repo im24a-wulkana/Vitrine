@@ -3,18 +3,18 @@ import { isAiConfigured } from "@/lib/ai/providers";
 import { rankBrands } from "@/lib/format";
 import { getSettings } from "@/lib/queries";
 import { getCompRows } from "@/lib/sales-data";
-import { requireUser } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/session";
 import type { Platform } from "@/lib/types";
 
 export const metadata = { title: "Add item" };
 
 export default async function NewItemPage() {
-  const { supabase, user } = await requireUser();
+  const { db, user } = await requireUser();
   const [{ data: rows }, { data: platforms }, settings, comps] = await Promise.all([
-    supabase.from("items").select("brand").limit(5000),
-    supabase.from("platforms").select("*").order("name"),
-    getSettings(supabase, user.id),
-    getCompRows(supabase),
+    db.from("items").select("brand").limit(5000),
+    db.from("platforms").select("*").order("name"),
+    getSettings(db, user.id),
+    getCompRows(db),
   ]);
 
   return (

@@ -1,11 +1,11 @@
 import { WardrobeView, type WardrobeItem } from "@/components/wardrobe-view";
-import { requireUser } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/session";
 
 export const metadata = { title: "Wardrobe" };
 
 export default async function WardrobePage() {
-  const { supabase } = await requireUser();
-  const { data, error } = await supabase
+  const { db } = await requireUser();
+  const { data, error } = await db
     .from("items")
     .select("id, brand, name, buy_price_chf, buy_date, created_at, item_images(url, is_primary, position, cutout_url), wears(worn_on)")
     .eq("status", "personal")

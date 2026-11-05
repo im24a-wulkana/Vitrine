@@ -2,14 +2,14 @@
 
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
-import { getUser } from "@/lib/supabase/server";
+import { getUser } from "@/lib/session";
 import type { ImportRow } from "@/lib/csv";
 import type { ActionResult } from "@/lib/types";
 
 /** Imports one batch all-or-nothing. If a step fails, the batch's items are removed again. */
 export async function importBatch(rows: ImportRow[]): Promise<ActionResult<{ count: number }>> {
   if (rows.length > 500) return { ok: false, error: "Batch too large" };
-  const { supabase, user } = await getUser();
+  const { db, user } = await getUser();
   if (!user) return { ok: false, error: "Not signed in" };
 
   const withIds = rows.map((row) => ({ row, id: randomUUID() }));
@@ -35,23 +35,23 @@ export async function importBatch(rows: ImportRow[]): Promise<ActionResult<{ cou
     };
   });
 
-  const { error } = await supabase.from("items").insert(itemRows);
+  const { error } = await db.from("items").insert(itemRows);
   if (error) return { ok: false, error: error.message };
 
   const rollback = async (message: string): Promise<ActionResult<{ count: number }>> => {
-    await supabase.from("items").delete().in("id", withIds.map((x) => x.id));
+    await db.from("items").delete().in("id", withIds.map((x) => x.id));
     return { ok: false, error: message };
   };
 
   const listings = withIds.flatMap(({ row, id }) => (row.listing ? [{ item_id: id, ...row.listing }] : []));
   if (listings.length) {
-    const { error: listingError } = await supabase.from("listings").insert(listings);
+    const { error: listingError } = await db.from("listings").insert(listings);
     if (listingError) return rollback(listingError.message);
   }
 
   const sales = withIds.flatMap(({ row, id }) => (row.sale ? [{ item_id: id, ...row.sale }] : []));
   if (sales.length) {
-    const { error: saleError } = await supabase.from("sales").insert(sales);
+    const { error: saleError } = await db.from("sales").insert(sales);
     if (saleError) return rollback(saleError.message);
   }
 

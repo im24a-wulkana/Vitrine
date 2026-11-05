@@ -1,6 +1,6 @@
 # Vitrine
 
-A personal wardrobe and resale profit tracker. It's an installable, mobile-first PWA built with Next.js 15, Supabase, Tailwind, shadcn/ui and Recharts.
+A personal wardrobe and resale profit tracker. It's an installable, mobile-first PWA built with Next.js 16, Neon, Tailwind, shadcn/ui and Recharts.
 
 ## Quick start (no database needed)
 
@@ -9,72 +9,61 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000. With no Supabase keys configured, Vitrine runs in **local mode**:
+Open http://localhost:3000. With no database configured, Vitrine runs in **local mode**:
 
 - There's no sign-in, and sample data loads on first run. Settings has **Start empty** and **Reload sample data**.
-- Data and photos are saved in the `.vitrine-data` folder, using an embedded Postgres with the same migrations and rules as Supabase. Delete the folder to start over.
+- Data and photos are saved in the `.vitrine-data` folder, using an embedded Postgres with the same migrations and rules as Neon. Delete the folder to start over.
 - The server only listens on this computer, because local mode has no login.
 
-## Moving to Supabase later
+## Moving to Neon
 
-You need a [Supabase](https://supabase.com) project. Adding its keys switches the whole app over with no code changes. Local data doesn't move automatically, so use **Import and export** to export your items first and import them afterwards.
+You need a [Neon](https://neon.com) project on AWS, because Neon Auth is AWS only. Local data doesn't move automatically, so use **Import and export** first and import it afterwards.
 
-### 1. Install
+### 1. Add your settings
 
-```bash
-npm install
-```
+In your Neon project, turn on **Auth**. Copy `.env.example` to `.env.local` and fill in `DATABASE_URL`, `NEON_AUTH_BASE_URL` and `NEON_AUTH_COOKIE_SECRET`. Don't enable Neon's Data API, which installs its own `auth` schema.
 
-### 2. Add your keys
+### 2. Set up the database
 
 ```bash
-cp .env.example .env.local
+npm run db:migrate
 ```
 
-Fill in `.env.local` using the values from your Supabase project's API settings. `SUPABASE_SERVICE_ROLE_KEY` and the `SEED_USER_*` values are only used by the seed script.
+Safe to run again. It only applies what's new.
 
-### 3. Run the migrations
-
-Using the Supabase CLI:
+### 3. Create your accounts
 
 ```bash
-npx supabase login
-npx supabase link --project-ref your-project-ref
-npx supabase db push
+npm run add-user -- you@example.com "Your Name"
 ```
 
-Or paste the files from `supabase/migrations/` into the SQL editor, in filename order.
+This prints a generated password once. Run it for each person. To load sample data instead, set `SEED_USER_EMAIL` and `SEED_USER_PASSWORD`, then run `npm run seed`.
 
-### 4. Load sample data (optional)
-
-Skip this if you're bringing your own data.
-
-```bash
-npm run seed
-```
-
-This creates the account named in `SEED_USER_EMAIL` with 15 made-up items across every status, plus sales, listings, wears, an outfit, expenses and a wishlist. Fee presets in the seed are examples only.
-
-If the account already has items, the script stops without changing anything. `npm run seed -- --reset` deletes that account's data and seeds it again.
-
-### 5. Start the app
+### 4. Start the app
 
 ```bash
 npm run dev
 ```
 
-Open http://localhost:3000 and sign in with your seed account.
-
 ## Before you use it for real
 
 - **Set your fees.** New accounts get a few platforms at 0% in **Settings**. Enter your actual rates, because the sold dialog uses them for its fee preset.
-- **Close signups.** The app has no sign-up form. Create accounts under Authentication in Supabase, then turn off "Allow new users to sign up" there, because the sign-up API stays open until you do.
+- **Keep the database URL private.** It connects as the database owner.
+
+## Who can get in
+
+Neon Auth can't turn off public sign-up yet, so anyone could create a login directly with Neon Auth. That login doesn't get them into Vitrine: the app only admits accounts in its own `auth.users` table, which only `npm run add-user` and `npm run seed` write to. The app has no sign-up form, and its own auth route refuses sign-ups.
+
+## How accounts stay separate
+
+Neon's owner role bypasses row level security, so every query from a signed-in person runs in a transaction that switches to the restricted `authenticated` role and sets their user id. The rules in `db/migrations` then apply. See `src/lib/db/neon.ts`. Only three things use the owner connection directly: the access check at sign-in, the scheduled notification job, and the setup scripts.
 
 ## Deploy to Vercel
 
 1. Push the repository to GitHub and import it in Vercel.
-2. Add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Only add the service role key if you use scheduled notifications, and never with a `NEXT_PUBLIC_` prefix.
-3. In Supabase, under Authentication > URL Configuration, set the Site URL to your Vercel domain and add `https://your-domain/auth/callback` as a redirect URL.
+2. Add `DATABASE_URL`, `NEON_AUTH_BASE_URL`, `NEON_AUTH_COOKIE_SECRET`, and your other settings from `.env.local`.
+3. In the project's **Storage** tab, create a **Blob** store with **private** access. You can't change the access mode later.
+4. In Neon, under Auth > Configuration > Domains, add your Vercel address, and turn off **Allow Localhost** in production.
 
 To install it on a phone, open the deployed site and choose **Add to Home Screen**.
 
@@ -124,7 +113,7 @@ Web Push covers aging listings (at most weekly), sales waiting to ship (at most 
 2. Run a production build (`npm run build`, then `npm run start`). Service workers are off under `npm run dev`.
 3. Turn notifications on in **Settings**, on each device. On an iPhone, add Vitrine to your Home Screen first.
 
-In local mode, **Check now** in Settings sends what's due. On Vercel, `vercel.json` runs the check daily. That needs `CRON_SECRET` and `SUPABASE_SERVICE_ROLE_KEY` set in Vercel, because the job reads every account's data on the server. It's the only place the app uses that key.
+In local mode, **Check now** in Settings sends what's due. On Vercel, `vercel.json` runs the check daily. That needs `CRON_SECRET` set in Vercel.
 
 ## Backup
 
@@ -146,7 +135,7 @@ Photos are compressed in the browser, then uploaded. The background is removed o
 
 ## Privacy
 
-Every table uses row level security, and anonymous users have no table access. Photos are in a public-read Storage bucket: each file has an unguessable URL and can't be listed, and only its owner can change or delete it, but anyone who has a photo's URL can open it.
+Every table uses row level security, and signed-out visitors have no table access. Photos are private: each is served through `/api/photos`, only to the account that owns it.
 
 ## Tests
 
@@ -159,12 +148,15 @@ This runs the real migrations in PGlite (Postgres compiled to WASM, no Docker ne
 ## Project layout
 
 ```
-supabase/migrations/  Schema, RLS and storage
+db/migrations/        Schema and row level security
 scripts/seed.ts       Sample data
 src/app/(app)/        Signed-in pages
 src/app/export/       CSV downloads
 src/lib/actions/      Server actions
-src/lib/local/        Local mode: embedded database and client
+src/lib/db/           Query client, Neon connection, migrations
+src/lib/local/        Local mode: embedded database
+src/lib/session.ts    Who is signed in, and the access check
+src/lib/storage.ts    Private photo storage
 src/lib/metrics.ts    Profit, ROI, aging and wardrobe calculations
 src/lib/csv.ts        CSV parsing, column mapping, row validation
 tests/                Database and logic tests

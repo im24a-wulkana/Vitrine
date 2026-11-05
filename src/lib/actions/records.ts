@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { getUser } from "@/lib/supabase/server";
+import { getUser } from "@/lib/session";
 import type { ActionResult } from "@/lib/types";
 import { findCity } from "@/lib/weather";
 
@@ -27,18 +27,18 @@ const expenseSchema = z.object({
 export async function addExpense(input: z.input<typeof expenseSchema>): Promise<ActionResult> {
   const parsed = expenseSchema.safeParse(input);
   if (!parsed.success) return fail(parsed.error);
-  const { supabase, user } = await getUser();
+  const { db, user } = await getUser();
   if (!user) return signedOut;
-  const { error } = await supabase.from("expenses").insert({ ...parsed.data, user_id: user.id });
+  const { error } = await db.from("expenses").insert({ ...parsed.data, user_id: user.id });
   if (error) return { ok: false, error: error.message };
   revalidatePath("/", "layout");
   return done;
 }
 
 export async function deleteExpense(id: string): Promise<ActionResult> {
-  const { supabase, user } = await getUser();
+  const { db, user } = await getUser();
   if (!user) return signedOut;
-  const { error } = await supabase.from("expenses").delete().eq("id", id);
+  const { error } = await db.from("expenses").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/", "layout");
   return done;
@@ -58,18 +58,18 @@ const wishSchema = z.object({
 export async function addWish(input: z.input<typeof wishSchema>): Promise<ActionResult> {
   const parsed = wishSchema.safeParse(input);
   if (!parsed.success) return fail(parsed.error);
-  const { supabase, user } = await getUser();
+  const { db, user } = await getUser();
   if (!user) return signedOut;
-  const { error } = await supabase.from("wishlist").insert({ ...parsed.data, user_id: user.id });
+  const { error } = await db.from("wishlist").insert({ ...parsed.data, user_id: user.id });
   if (error) return { ok: false, error: error.message };
   revalidatePath("/wishlist");
   return done;
 }
 
 export async function deleteWish(id: string): Promise<ActionResult> {
-  const { supabase, user } = await getUser();
+  const { db, user } = await getUser();
   if (!user) return signedOut;
-  const { error } = await supabase.from("wishlist").delete().eq("id", id);
+  const { error } = await db.from("wishlist").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/wishlist");
   return done;
@@ -87,9 +87,9 @@ const settingsSchema = z.object({
 export async function saveSettings(input: z.input<typeof settingsSchema>): Promise<ActionResult> {
   const parsed = settingsSchema.safeParse(input);
   if (!parsed.success) return fail(parsed.error);
-  const { supabase, user } = await getUser();
+  const { db, user } = await getUser();
   if (!user) return signedOut;
-  const { error } = await supabase.from("user_settings").upsert({ ...parsed.data, user_id: user.id, updated_at: new Date().toISOString() });
+  const { error } = await db.from("user_settings").upsert({ ...parsed.data, user_id: user.id, updated_at: new Date().toISOString() });
   if (error) return { ok: false, error: error.message };
   revalidatePath("/", "layout");
   return done;
@@ -105,12 +105,12 @@ const platformSchema = z.object({
 export async function savePlatform(input: z.input<typeof platformSchema>): Promise<ActionResult> {
   const parsed = platformSchema.safeParse(input);
   if (!parsed.success) return fail(parsed.error);
-  const { supabase, user } = await getUser();
+  const { db, user } = await getUser();
   if (!user) return signedOut;
   const { id, ...fields } = parsed.data;
   const { error } = id
-    ? await supabase.from("platforms").update(fields).eq("id", id)
-    : await supabase.from("platforms").insert({ ...fields, user_id: user.id });
+    ? await db.from("platforms").update(fields).eq("id", id)
+    : await db.from("platforms").insert({ ...fields, user_id: user.id });
   if (error) {
     return { ok: false, error: error.code === "23505" ? "You already have a platform with this name" : error.message };
   }
@@ -120,19 +120,14 @@ export async function savePlatform(input: z.input<typeof platformSchema>): Promi
 
 /** Past sales and listings keep the platform name as text, so they are unaffected. */
 export async function deletePlatform(id: string): Promise<ActionResult> {
-  const { supabase, user } = await getUser();
+  const { db, user } = await getUser();
   if (!user) return signedOut;
-  const { error } = await supabase.from("platforms").delete().eq("id", id);
+  const { error } = await db.from("platforms").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/", "layout");
   return done;
 }
 
-export async function signOut(): Promise<void> {
-  const { supabase } = await getUser();
-  await supabase.auth.signOut();
-  revalidatePath("/", "layout");
-}
 
 const locationSchema = z.object({
   city: z.string().trim().max(200).nullable(),
@@ -143,9 +138,9 @@ const locationSchema = z.object({
 export async function setLocation(input: z.input<typeof locationSchema>): Promise<ActionResult> {
   const parsed = locationSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid location" };
-  const { supabase, user } = await getUser();
+  const { db, user } = await getUser();
   if (!user) return signedOut;
-  const { error } = await supabase.from("user_settings").upsert({ ...parsed.data, user_id: user.id });
+  const { error } = await db.from("user_settings").upsert({ ...parsed.data, user_id: user.id });
   if (error) return { ok: false, error: error.message };
   revalidatePath("/", "layout");
   return done;
@@ -162,9 +157,9 @@ export async function setCity(name: string): Promise<ActionResult<{ city: string
 }
 
 export async function clearLocation(): Promise<ActionResult> {
-  const { supabase, user } = await getUser();
+  const { db, user } = await getUser();
   if (!user) return signedOut;
-  const { error } = await supabase.from("user_settings").upsert({ user_id: user.id, city: null, lat: null, lon: null });
+  const { error } = await db.from("user_settings").upsert({ user_id: user.id, city: null, lat: null, lon: null });
   if (error) return { ok: false, error: error.message };
   revalidatePath("/", "layout");
   return done;
@@ -172,7 +167,7 @@ export async function clearLocation(): Promise<ActionResult> {
 
 /** Fire and forget from the toggle. The device already shows the new theme. */
 export async function saveTheme(theme: "dark" | "light"): Promise<void> {
-  const { supabase, user } = await getUser();
+  const { db, user } = await getUser();
   if (!user || (theme !== "dark" && theme !== "light")) return;
-  await supabase.from("user_settings").upsert({ user_id: user.id, theme });
+  await db.from("user_settings").upsert({ user_id: user.id, theme });
 }

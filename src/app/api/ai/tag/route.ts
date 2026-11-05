@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { AiError, getVisionProvider, type VisionImage } from "@/lib/ai/providers";
-import { getUser } from "@/lib/supabase/server";
+import { getUser } from "@/lib/session";
 
 const TYPES = new Set<string>(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 const MAX_BYTES = 5 * 1024 * 1024;

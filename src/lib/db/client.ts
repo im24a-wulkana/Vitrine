@@ -1,13 +1,15 @@
-// A small stand-in for the Supabase client, backed by the embedded Postgres in
-// db.ts. It implements only the query-builder calls this app uses, and returns
-// the same result shapes, so app code doesn't know which backend it's talking to.
-import { rmSync } from "node:fs";
-import { basename, join } from "node:path";
-import type { PGlite } from "@electric-sql/pglite";
-import { LOCAL_UPLOAD_DIR, LOCAL_USER_ID } from "./paths";
+// The app's query builder. Every page and action goes through this, whichever
+// database is behind it: the embedded Postgres in local mode, or Neon.
 
 type Row = Record<string, unknown>;
-type Result = { data: unknown; error: { message: string; code?: string } | null; count?: number | null };
+// Each caller casts data to the shape it selected.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Result = { data: any; error: { message: string; code?: string } | null; count?: number | null };
+
+/** Runs one SQL statement. Deciding who it runs as is the runner's job. */
+export interface SqlRunner {
+  query(text: string, params?: unknown[]): Promise<{ rows: Row[] }>;
+}
 
 interface Relation {
   table: string;
@@ -92,7 +94,7 @@ class Query implements PromiseLike<Result> {
   private conflict: string | null = null;
   private ignoreDuplicates = false;
 
-  constructor(private db: PGlite, private table: string) {
+  constructor(private db: SqlRunner, private table: string) {
     ident(table);
   }
 
@@ -192,15 +194,15 @@ class Query implements PromiseLike<Result> {
         const params: unknown[] = [];
         const where = this.where(params);
         if (this.countOnly) {
-          const r = await this.db.query<{ n: number }>(`select count(*)::int as n from ${ident(this.table)}${where}`, params);
-          return { data: null, error: null, count: r.rows[0].n };
+          const r = await this.db.query(`select count(*)::int as n from ${ident(this.table)}${where}`, params);
+          return { data: null, error: null, count: r.rows[0].n as number };
         }
         const order = this.orders.length ? ` order by ${this.orders.join(", ")}` : "";
         const limit = this.max !== null ? ` limit ${Number(this.max)}` : "";
-        rows = (await this.db.query<Row>(`select * from ${ident(this.table)}${where}${order}${limit}`, params)).rows;
+        rows = (await this.db.query(`select * from ${ident(this.table)}${where}${order}${limit}`, params)).rows;
       } else {
         rows = await this.mutate();
-        // Like Supabase, a write returns no rows unless .select() was chained on.
+        // A write returns no rows unless .select() was chained on.
         if (!this.selection) return { data: null, error: null };
       }
 
@@ -223,7 +225,7 @@ class Query implements PromiseLike<Result> {
 
     if (this.op === "delete") {
       const where = this.where(params);
-      return (await this.db.query<Row>(`delete from ${table}${where} returning *`, params)).rows;
+      return (await this.db.query(`delete from ${table}${where} returning *`, params)).rows;
     }
 
     if (this.op === "update") {
@@ -233,7 +235,7 @@ class Query implements PromiseLike<Result> {
         return `${ident(column)} = $${params.length}`;
       });
       const where = this.where(params);
-      return (await this.db.query<Row>(`update ${table} set ${sets.join(", ")}${where} returning *`, params)).rows;
+      return (await this.db.query(`update ${table} set ${sets.join(", ")}${where} returning *`, params)).rows;
     }
 
     if (this.rows.length === 0) return [];
@@ -257,12 +259,12 @@ class Query implements PromiseLike<Result> {
         : ` on conflict ${target} do update set ${updates.join(", ")}`;
     }
     const sql = `insert into ${table} (${columns.map(ident).join(", ")}) values ${values.join(", ")}${conflict} returning *`;
-    return (await this.db.query<Row>(sql, params)).rows;
+    return (await this.db.query(sql, params)).rows;
   }
 }
 
 /** Loads embedded relations and keeps only the requested columns. */
-async function shape(db: PGlite, table: string, rows: Row[], selection: Selection): Promise<Row[]> {
+async function shape(db: SqlRunner, table: string, rows: Row[], selection: Selection): Promise<Row[]> {
   const output: Row[] = rows.map((row) => {
     if (selection.star) return { ...row };
     return Object.fromEntries(selection.columns.map((column) => [column, row[column]]));
@@ -277,7 +279,7 @@ async function shape(db: PGlite, table: string, rows: Row[], selection: Selectio
     const matchColumn = relation.kind === "parent" ? "id" : relation.key;
     const placeholders = ids.map((_, i) => `$${i + 1}`).join(", ");
     const children = ids.length
-      ? (await db.query<Row>(`select * from ${ident(relation.table)} where ${ident(matchColumn)} in (${placeholders})`, ids)).rows
+      ? (await db.query(`select * from ${ident(relation.table)} where ${ident(matchColumn)} in (${placeholders})`, ids)).rows
       : [];
     const shapedChildren = await shape(db, relation.table, children, embed.selection);
 
@@ -294,21 +296,10 @@ async function shape(db: PGlite, table: string, rows: Row[], selection: Selectio
   return output;
 }
 
-export function createLocalClient(db: PGlite) {
-  const user = { id: LOCAL_USER_ID, email: "Local mode" };
+export function createDbClient(db: SqlRunner) {
   return {
     from: (table: string) => new Query(db, table),
-    auth: {
-      getUser: async () => ({ data: { user }, error: null }),
-      signOut: async () => ({ error: null }),
-    },
-    storage: {
-      from: () => ({
-        remove: async (paths: string[]) => {
-          for (const path of paths) rmSync(join(LOCAL_UPLOAD_DIR, basename(path)), { force: true });
-          return { data: null, error: null };
-        },
-      }),
-    },
   };
 }
+
+export type DbClient = ReturnType<typeof createDbClient>;

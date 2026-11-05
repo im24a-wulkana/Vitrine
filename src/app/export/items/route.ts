@@ -1,5 +1,5 @@
 import { csvResponse, unauthorized } from "@/lib/csv-response";
-import { getUser } from "@/lib/supabase/server";
+import { getUser } from "@/lib/session";
 import type { InventoryItem } from "@/lib/types";
 
 // Column names match the import fields, so this file can be imported back in.
@@ -10,10 +10,10 @@ const HEADER = [
 ];
 
 export async function GET() {
-  const { supabase, user } = await getUser();
+  const { db, user } = await getUser();
   if (!user) return unauthorized();
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("items")
     .select("*, listings(*), sales(*)")
     .order("created_at", { ascending: true })

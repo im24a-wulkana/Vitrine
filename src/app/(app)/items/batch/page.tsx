@@ -1,12 +1,12 @@
 import { BatchForm } from "@/components/batch-form";
 import { rankBrands } from "@/lib/format";
-import { requireUser } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/session";
 
 export const metadata = { title: "Batch upload" };
 
 export default async function BatchPage() {
-  const { supabase } = await requireUser();
-  const { data: rows } = await supabase.from("items").select("brand").limit(5000);
+  const { db } = await requireUser();
+  const { data: rows } = await db.from("items").select("brand").limit(5000);
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-6">
       <div>

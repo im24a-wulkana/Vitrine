@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { getUser } from "@/lib/supabase/server";
+import { getUser } from "@/lib/session";
 import type { ActionResult } from "@/lib/types";
 
 const done: ActionResult = { ok: true, data: undefined };
@@ -15,10 +15,10 @@ function refresh() {
 // --- Cross-listing ---------------------------------------------------------
 
 export async function confirmDelisted(listingIds: string[]): Promise<ActionResult> {
-  const { supabase, user } = await getUser();
+  const { db, user } = await getUser();
   if (!user) return signedOut;
   if (listingIds.length === 0) return done;
-  const { error } = await supabase.from("listings").update({ needs_delisting: false }).in("id", listingIds);
+  const { error } = await db.from("listings").update({ needs_delisting: false }).in("id", listingIds);
   if (error) return { ok: false, error: error.message };
   refresh();
   return done;
@@ -37,9 +37,9 @@ const offerSchema = z.object({
 export async function addOffer(input: z.input<typeof offerSchema>): Promise<ActionResult> {
   const parsed = offerSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid offer" };
-  const { supabase, user } = await getUser();
+  const { db, user } = await getUser();
   if (!user) return signedOut;
-  const { error } = await supabase.from("offers").insert(parsed.data);
+  const { error } = await db.from("offers").insert(parsed.data);
   if (error) return { ok: false, error: error.message };
   refresh();
   return done;
@@ -48,18 +48,18 @@ export async function addOffer(input: z.input<typeof offerSchema>): Promise<Acti
 export async function setOfferStatus(id: string, status: string): Promise<ActionResult> {
   const parsed = offerStatus.safeParse(status);
   if (!parsed.success) return { ok: false, error: "Invalid status" };
-  const { supabase, user } = await getUser();
+  const { db, user } = await getUser();
   if (!user) return signedOut;
-  const { error } = await supabase.from("offers").update({ status: parsed.data }).eq("id", id);
+  const { error } = await db.from("offers").update({ status: parsed.data }).eq("id", id);
   if (error) return { ok: false, error: error.message };
   refresh();
   return done;
 }
 
 export async function deleteOffer(id: string): Promise<ActionResult> {
-  const { supabase, user } = await getUser();
+  const { db, user } = await getUser();
   if (!user) return signedOut;
-  const { error } = await supabase.from("offers").delete().eq("id", id);
+  const { error } = await db.from("offers").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
   refresh();
   return done;
@@ -75,9 +75,9 @@ const shippingSchema = z.object({
 export async function updateShipping(saleId: string, input: z.input<typeof shippingSchema>): Promise<ActionResult> {
   const parsed = shippingSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid shipping details" };
-  const { supabase, user } = await getUser();
+  const { db, user } = await getUser();
   if (!user) return signedOut;
-  const { error } = await supabase
+  const { error } = await db
     .from("sales")
     .update({ shipping_status: parsed.data.status, tracking_number: parsed.data.tracking || null })
     .eq("id", saleId);
@@ -99,9 +99,9 @@ const lotSchema = z.object({
 export async function createLot(input: z.input<typeof lotSchema>): Promise<ActionResult<{ id: string }>> {
   const parsed = lotSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid lot" };
-  const { supabase, user } = await getUser();
+  const { db, user } = await getUser();
   if (!user) return signedOut;
-  const { data, error } = await supabase.from("lots").insert({ ...parsed.data, user_id: user.id }).select("id").single();
+  const { data, error } = await db.from("lots").insert({ ...parsed.data, user_id: user.id }).select("id").single();
   if (error) return { ok: false, error: error.message };
   refresh();
   return { ok: true, data: { id: data.id as string } };
@@ -111,9 +111,9 @@ export async function createLot(input: z.input<typeof lotSchema>): Promise<Actio
 export async function updateLot(id: string, input: z.input<typeof lotSchema>): Promise<ActionResult> {
   const parsed = lotSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid lot" };
-  const { supabase, user } = await getUser();
+  const { db, user } = await getUser();
   if (!user) return signedOut;
-  const { error } = await supabase.from("lots").update(parsed.data).eq("id", id);
+  const { error } = await db.from("lots").update(parsed.data).eq("id", id);
   if (error) return { ok: false, error: error.message };
   refresh();
   return done;
@@ -121,19 +121,19 @@ export async function updateLot(id: string, input: z.input<typeof lotSchema>): P
 
 /** Items stay, keeping the cost share they had. */
 export async function deleteLot(id: string): Promise<ActionResult> {
-  const { supabase, user } = await getUser();
+  const { db, user } = await getUser();
   if (!user) return signedOut;
-  const { error } = await supabase.from("lots").delete().eq("id", id);
+  const { error } = await db.from("lots").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
   refresh();
   return done;
 }
 
 export async function assignToLot(lotId: string | null, itemIds: string[]): Promise<ActionResult> {
-  const { supabase, user } = await getUser();
+  const { db, user } = await getUser();
   if (!user) return signedOut;
   if (itemIds.length === 0) return done;
-  const { error } = await supabase.from("items").update({ lot_id: lotId }).in("id", itemIds);
+  const { error } = await db.from("items").update({ lot_id: lotId }).in("id", itemIds);
   if (error) return { ok: false, error: error.message };
   refresh();
   return done;

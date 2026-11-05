@@ -6,7 +6,7 @@ import { WearChart } from "@/components/wear-chart";
 import { getCompRows } from "@/lib/sales-data";
 import { daysBetween, imageFitClass, localDate, money, shortDate, signedMoney } from "@/lib/format";
 import { costPerWear } from "@/lib/metrics";
-import { requireUser } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/session";
 import { MEASUREMENTS, STATUS_LABEL, type InventoryItem, type Listing, type Offer, type Platform, type PriceChange } from "@/lib/types";
 
 type DetailItem = InventoryItem & {
@@ -18,22 +18,22 @@ type DetailItem = InventoryItem & {
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { supabase } = await requireUser();
-  const { data } = await supabase.from("items").select("brand, name").eq("id", id).maybeSingle();
+  const { db } = await requireUser();
+  const { data } = await db.from("items").select("brand, name").eq("id", id).maybeSingle();
   return { title: data ? `${data.brand} ${data.name}` : "Item" };
 }
 
 export default async function ItemPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { supabase } = await requireUser();
+  const { db } = await requireUser();
   const [{ data }, { data: platforms }, comps] = await Promise.all([
-    supabase
+    db
       .from("items")
       .select("*, item_images(*), listings(*, price_changes(*)), sales(*), wears(worn_on), offers(*, platforms(name)), lots(id, name)")
       .eq("id", id)
       .maybeSingle(),
-    supabase.from("platforms").select("*").order("name"),
-    getCompRows(supabase),
+    db.from("platforms").select("*").order("name"),
+    getCompRows(db),
   ]);
   if (!data) notFound();
 

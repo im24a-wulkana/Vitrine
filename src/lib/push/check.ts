@@ -1,7 +1,7 @@
 // Decides which notifications are due for one user, and sends them.
 //
-// Every query here filters by user id explicitly. The scheduled job runs with the
-// service role, which bypasses row level security, so nothing else protects
+// Every query here filters by user id explicitly. The scheduled job runs as the
+// database owner, which bypasses row level security, so nothing else protects
 // one account's data from reaching another account's phone.
 import { listingAgeDays } from "../metrics";
 

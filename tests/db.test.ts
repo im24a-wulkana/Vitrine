@@ -1,11 +1,11 @@
 // Runs the real migrations against PGlite (Postgres in WASM), with a small stub
-// standing in for the auth and storage schemas that Supabase provides.
+// standing in for the auth and storage schemas that the app bootstraps.
 import { after, before, beforeEach, test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
-import { SUPABASE_STUB } from "../src/lib/local/db";
+import { BOOTSTRAP_SQL } from "../src/lib/db/migrate";
 
 const USER_A = "00000000-0000-0000-0000-00000000000a";
 const USER_B = "00000000-0000-0000-0000-00000000000b";
@@ -36,8 +36,8 @@ async function statusOf(id: string) {
 
 before(async () => {
   db = new PGlite();
-  await db.exec(SUPABASE_STUB);
-  const dir = join(process.cwd(), "supabase", "migrations");
+  await db.exec(BOOTSTRAP_SQL);
+  const dir = join(process.cwd(), "db", "migrations");
   for (const file of readdirSync(dir).sort()) {
     await db.exec(readFileSync(join(dir, file), "utf8"));
   }
@@ -361,8 +361,8 @@ test("deleting an item leaves other pieces in the log, and removes a log left em
 
 test("existing wears move into logs, grouped by day and user", async () => {
   const old = new PGlite();
-  await old.exec(SUPABASE_STUB);
-  const dir = join(process.cwd(), "supabase", "migrations");
+  await old.exec(BOOTSTRAP_SQL);
+  const dir = join(process.cwd(), "db", "migrations");
   const files = readdirSync(dir).sort();
   for (const file of files.filter((f) => f < "0008")) await old.exec(readFileSync(join(dir, file), "utf8"));
   await old.query(`insert into auth.users (id, email) values ($1, 'a'), ($2, 'b')`, [USER_A, USER_B]);

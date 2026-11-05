@@ -1,13 +1,13 @@
 import { InsightsView } from "@/components/insights-view";
 import { localDate } from "@/lib/format";
 import type { InsightItem } from "@/lib/insights";
-import { requireUser } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/session";
 
 export const metadata = { title: "Insights" };
 
 export default async function InsightsPage() {
-  const { supabase } = await requireUser();
-  const { data, error } = await supabase
+  const { db } = await requireUser();
+  const { data, error } = await db
     .from("items")
     .select("id, brand, name, category, color, colors, buy_price_chf, buy_date, created_at, wears(worn_on)")
     .eq("status", "personal")

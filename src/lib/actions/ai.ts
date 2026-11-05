@@ -4,7 +4,7 @@ import { AiError, getLLMProvider } from "@/lib/ai/providers";
 import { sanitizeOutfit, type OutfitRequestItem } from "@/lib/ai/schema";
 import { slotFor } from "@/lib/outfits";
 import { getSettings } from "@/lib/queries";
-import { getUser } from "@/lib/supabase/server";
+import { getUser } from "@/lib/session";
 import type { ActionResult } from "@/lib/types";
 import { getWeather } from "@/lib/weather";
 
@@ -22,13 +22,13 @@ type PersonalItem = {
 
 /** Suggests an outfit from the user's personal items. Saves nothing until they choose to. */
 export async function generateOutfit(input: { occasion: string | null; anchorItemId: string | null }): Promise<ActionResult<{ itemIds: string[]; reasoning: string | null }>> {
-  const { supabase, user } = await getUser();
+  const { db, user } = await getUser();
   if (!user) return { ok: false, error: "Not signed in" };
 
   const provider = getLLMProvider();
   if (!provider) return { ok: false, error: "AI isn't set up. Add ANTHROPIC_API_KEY to .env.local and restart the app." };
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("items")
     .select("id, brand, name, category, subcategory, color, colors, seasons, occasions")
     .eq("status", "personal")
@@ -48,7 +48,7 @@ export async function generateOutfit(input: { occasion: string | null; anchorIte
   if (items.length < 2) return { ok: false, error: "Add at least two personal items first." };
 
   const anchorItemId = input.anchorItemId && items.some((i) => i.id === input.anchorItemId) ? input.anchorItemId : null;
-  const settings = await getSettings(supabase, user.id);
+  const settings = await getSettings(db, user.id);
   const weather = settings.lat !== null && settings.lon !== null ? await getWeather(settings.lat, settings.lon) : null;
 
   try {

@@ -1,26 +1,27 @@
-// The local client must behave like the Supabase client for every call the app makes.
+// The query client must behave the same way for every call the app makes.
 import { after, before, beforeEach, test } from "node:test";
 import assert from "node:assert/strict";
 import { PGlite } from "@electric-sql/pglite";
-import { createLocalClient } from "../src/lib/local/client";
-import { LOCAL_PARSERS, LOCAL_USER_ID, migrate, SUPABASE_STUB } from "../src/lib/local/db";
+import { createDbClient } from "../src/lib/db/client";
+import { BOOTSTRAP_SQL, migrate } from "../src/lib/db/migrate";
+import { LOCAL_PARSERS } from "../src/lib/db/parsers";
+import { localRunner } from "../src/lib/local/db";
+import { LOCAL_USER_ID } from "../src/lib/local/paths";
 import { getSaleRows } from "../src/lib/sales-data";
 import { seedSampleData, SAMPLE_ITEM_COUNT } from "../src/lib/seed-data";
 import { getAgingAlerts, getSettings } from "../src/lib/queries";
 import { summarize } from "../src/lib/metrics";
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 let db: PGlite;
-let client: ReturnType<typeof createLocalClient>;
-const asSupabase = () => client as unknown as SupabaseClient;
+let client: ReturnType<typeof createDbClient>;
 
 before(async () => {
   db = new PGlite({ parsers: LOCAL_PARSERS });
-  await db.exec(SUPABASE_STUB);
-  await migrate(db);
+  await db.exec(BOOTSTRAP_SQL);
+  await migrate({ exec: (sql) => db.exec(sql), query: (sql, params) => db.query(sql, params) });
   await db.exec(`set request.jwt.sub = '${LOCAL_USER_ID}'`);
   await db.query(`insert into auth.users (id, email) values ($1, 'local')`, [LOCAL_USER_ID]);
-  client = createLocalClient(db);
+  client = createDbClient(localRunner(db));
 });
 
 after(() => db.close());
@@ -35,7 +36,7 @@ async function item(fields: Record<string, unknown> = {}) {
   return (data as { id: string }).id;
 }
 
-test("numbers come back as numbers and dates as strings, like Supabase", async () => {
+test("numbers come back as numbers and dates as strings", async () => {
   const id = await item({ buy_date: "2026-01-02" });
   const { data } = await client.from("items").select("*").eq("id", id).single();
   const row = data as { buy_price: number; buy_date: string; created_at: string; tags: string[] };
@@ -148,7 +149,7 @@ test("wear logs store arrays and weather, and upsert by day", async () => {
   await client.from("wear_logs").delete().eq("date", "2026-03-01");
 });
 
-test("single and maybeSingle follow Supabase's rules", async () => {
+test("single and maybeSingle follow their rules", async () => {
   const missing = "00000000-0000-4000-8000-0000000000ff";
   assert.equal((await client.from("items").select("*").eq("id", missing).maybeSingle()).data, null);
   assert.equal((await client.from("items").select("*").eq("id", missing).maybeSingle()).error, null);
@@ -177,7 +178,7 @@ test("trigger errors reach the app", async () => {
 
 test("upsert updates on conflict; ignoreDuplicates leaves the row alone", async () => {
   await client.from("user_settings").upsert({ user_id: LOCAL_USER_ID, aging_threshold_days: 45 });
-  assert.equal((await getSettings(asSupabase(), LOCAL_USER_ID)).aging_threshold_days, 45);
+  assert.equal((await getSettings(client, LOCAL_USER_ID)).aging_threshold_days, 45);
   await client.from("user_settings").upsert({ user_id: LOCAL_USER_ID, aging_threshold_days: 30 });
 
   const id = await item();
@@ -201,12 +202,12 @@ test("the sample data loads, with the expected mix of statuses and working dashb
   assert.equal((data as unknown[]).length, SAMPLE_ITEM_COUNT);
   assert.deepEqual(counts, { personal: 5, in_stock: 1, listed: 4, sold: 5 });
 
-  const sales = await getSaleRows(asSupabase());
+  const sales = await getSaleRows(client);
   assert.equal(sales.length, 5);
   assert.ok(sales.every((s) => s.started_at && typeof s.net_profit === "number"));
   assert.ok(summarize(sales, [], "all", "2030-01-01").avgDaysToSell! > 0);
 
   const today = new Date().toISOString().slice(0, 10);
-  const alerts = await getAgingAlerts(asSupabase(), await getSettings(asSupabase(), LOCAL_USER_ID), today);
+  const alerts = await getAgingAlerts(client, await getSettings(client, LOCAL_USER_ID), today);
   assert.deepEqual(alerts.map((a) => a.name).sort(), ["Shell parka", "Twisted trousers"]);
 });

@@ -149,7 +149,7 @@ function LogSheet({ date, log, today, weather, pieces, outfits, onClose }: Sheet
     try {
       // Loaded on demand: the calendar shouldn't pay for this until someone adds a photo.
       const { compressPhoto } = await import("@/lib/image-pipeline");
-      setPhotoUrl(await uploadPhotoBlob(await compressPhoto(file), "wear-logs"));
+      setPhotoUrl(await uploadPhotoBlob(await compressPhoto(file)));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Upload failed");
     } finally {

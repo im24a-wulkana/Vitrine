@@ -2,14 +2,14 @@ import { NextResponse } from "next/server";
 import { buildBackup } from "@/lib/backup";
 import { unauthorized } from "@/lib/csv-response";
 import { localDate } from "@/lib/format";
-import { getUser } from "@/lib/supabase/server";
+import { getUser } from "@/lib/session";
 
 export async function GET() {
-  const { supabase, user } = await getUser();
+  const { db, user } = await getUser();
   if (!user) return unauthorized();
 
   try {
-    const backup = await buildBackup(supabase);
+    const backup = await buildBackup(db);
     return new NextResponse(JSON.stringify(backup, null, 2), {
       headers: {
         "Content-Type": "application/json; charset=utf-8",

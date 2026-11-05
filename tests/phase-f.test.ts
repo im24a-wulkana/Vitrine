@@ -4,8 +4,11 @@ import { PGlite } from "@electric-sql/pglite";
 import webpush from "web-push";
 import { buildBackup } from "../src/lib/backup";
 import { categoryBreakdown, colorBreakdown, leastWorn, mostWorn, notWornIn6Months, type InsightItem } from "../src/lib/insights";
-import { createLocalClient } from "../src/lib/local/client";
-import { LOCAL_PARSERS, LOCAL_USER_ID, migrate, SUPABASE_STUB } from "../src/lib/local/db";
+import { createDbClient } from "../src/lib/db/client";
+import { BOOTSTRAP_SQL, migrate } from "../src/lib/db/migrate";
+import { LOCAL_PARSERS } from "../src/lib/db/parsers";
+import { localRunner } from "../src/lib/local/db";
+import { LOCAL_USER_ID } from "../src/lib/local/paths";
 import { dueMessages, isoWeek, isPushEndpoint, loadPushState, runPushCheck, type PushResult, type PushSender } from "../src/lib/push/check";
 
 const TODAY = "2026-11-04";
@@ -84,15 +87,15 @@ test("web-push accepts generated keys and builds an encrypted request", () => {
 });
 
 let db: PGlite;
-let client: ReturnType<typeof createLocalClient>;
+let client: ReturnType<typeof createDbClient>;
 
 before(async () => {
   db = new PGlite({ parsers: LOCAL_PARSERS });
-  await db.exec(SUPABASE_STUB);
-  await migrate(db);
+  await db.exec(BOOTSTRAP_SQL);
+  await migrate({ exec: (sql) => db.exec(sql), query: (sql, params) => db.query(sql, params) });
   await db.exec(`set request.jwt.sub = '${LOCAL_USER_ID}'`);
   await db.query(`insert into auth.users (id, email) values ($1, 'me'), ($2, 'other')`, [LOCAL_USER_ID, OTHER_USER]);
-  client = createLocalClient(db);
+  client = createDbClient(localRunner(db));
 });
 after(() => db.close());
 beforeEach(async () => {
@@ -187,7 +190,7 @@ test("no devices means no work and nothing logged", async () => {
 test("the backup holds every table, and leaves out push subscriptions", async () => {
   await addSale(LOCAL_USER_ID, 100);
   await subscribe(LOCAL_USER_ID, "https://e/secret");
-  const backup = await buildBackup(client as never, new Date("2026-11-04T10:00:00Z"));
+  const backup = await buildBackup(client, new Date("2026-11-04T10:00:00Z"));
   assert.equal(backup.version, 1);
   assert.equal(backup.exported_at, "2026-11-04T10:00:00.000Z");
   assert.equal(backup.tables.items.length, 1);

@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { defaultPlacement } from "@/lib/outfits";
-import { getUser } from "@/lib/supabase/server";
+import { getUser } from "@/lib/session";
+import { removePhotos } from "@/lib/storage";
 import type { ActionResult } from "@/lib/types";
 
 const blankToNull = (v: unknown) => (typeof v === "string" && v.trim() === "" ? null : v);
@@ -53,24 +54,24 @@ function firstIssue(error: z.ZodError) {
 export async function createItem(input: CreateItemInput): Promise<ActionResult<{ id: string }>> {
   const parsed = createSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
-  const { supabase, user } = await getUser();
+  const { db, user } = await getUser();
   if (!user) return { ok: false, error: "Not signed in" };
 
   const { images, listing, status, ...fields } = parsed.data;
   // When a listing is provided, inserting it moves the item to "listed".
-  const { error } = await supabase
+  const { error } = await db
     .from("items")
     .insert({ ...fields, status: listing ? "in_stock" : status, user_id: user.id });
   if (error) return { ok: false, error: error.message };
 
   if (images.length) {
-    const { error: imageError } = await supabase.from("item_images").insert(
+    const { error: imageError } = await db.from("item_images").insert(
       images.map((image, position) => ({ ...image, item_id: fields.id, position, is_primary: position === 0 })),
     );
     if (imageError) return { ok: false, error: imageError.message };
   }
   if (listing) {
-    const { error: listingError } = await supabase.from("listings").insert({ item_id: fields.id, ...listing });
+    const { error: listingError } = await db.from("listings").insert({ item_id: fields.id, ...listing });
     if (listingError) return { ok: false, error: listingError.message };
   }
 
@@ -81,39 +82,30 @@ export async function createItem(input: CreateItemInput): Promise<ActionResult<{
 export async function updateItem(id: string, input: UpdateItemInput): Promise<ActionResult> {
   const parsed = itemFields.safeParse(input);
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
-  const { supabase, user } = await getUser();
+  const { db, user } = await getUser();
   if (!user) return { ok: false, error: "Not signed in" };
 
-  const { error } = await supabase.from("items").update(parsed.data).eq("id", id);
+  const { error } = await db.from("items").update(parsed.data).eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/", "layout");
   return { ok: true, data: undefined };
 }
 
-function storagePath(url: string): string | null {
-  if (url.startsWith("/api/local-files/")) return url.slice("/api/local-files/".length);
-  const marker = "/storage/v1/object/public/item-images/";
-  const at = url.indexOf(marker);
-  return at === -1 ? null : decodeURIComponent(url.slice(at + marker.length));
-}
-
 type ImageFiles = { url: string; original_url: string | null; cutout_url: string | null };
 
-function storagePaths(images: ImageFiles[]): string[] {
-  const urls = images.flatMap((i) => [i.url, i.original_url, i.cutout_url]);
-  return [...new Set(urls)].map((url) => (url ? storagePath(url) : null)).filter((p): p is string => p !== null);
+function imageUrls(images: ImageFiles[]): (string | null)[] {
+  return images.flatMap((i) => [i.url, i.original_url, i.cutout_url]);
 }
 
 export async function deleteItems(ids: string[]): Promise<ActionResult<{ count: number }>> {
-  const { supabase, user } = await getUser();
+  const { db, user } = await getUser();
   if (!user) return { ok: false, error: "Not signed in" };
 
-  const { data: images } = await supabase.from("item_images").select("url, original_url, cutout_url").in("item_id", ids);
-  const { data, error } = await supabase.from("items").delete().in("id", ids).select("id");
+  const { data: images } = await db.from("item_images").select("url, original_url, cutout_url").in("item_id", ids);
+  const { data, error } = await db.from("items").delete().in("id", ids).select("id");
   if (error) return { ok: false, error: error.message };
 
-  const paths = storagePaths((images ?? []) as ImageFiles[]);
-  if (paths.length) await supabase.storage.from("item-images").remove(paths);
+  await removePhotos(user.id, imageUrls((images ?? []) as ImageFiles[]));
 
   revalidatePath("/", "layout");
   return { ok: true, data: { count: data?.length ?? 0 } };
@@ -125,10 +117,10 @@ const bulkStatus = z.enum(["personal", "in_stock", "listed"]);
 export async function bulkSetStatus(ids: string[], status: string): Promise<ActionResult<{ changed: number; skipped: number }>> {
   const parsed = bulkStatus.safeParse(status);
   if (!parsed.success) return { ok: false, error: "Use Mark as sold to sell an item" };
-  const { supabase, user } = await getUser();
+  const { db, user } = await getUser();
   if (!user) return { ok: false, error: "Not signed in" };
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("items")
     .update({ status: parsed.data })
     .in("id", ids)
@@ -142,11 +134,11 @@ export async function bulkSetStatus(ids: string[], status: string): Promise<Acti
 }
 
 export async function addImage(itemId: string, url: string): Promise<ActionResult> {
-  const { supabase, user } = await getUser();
+  const { db, user } = await getUser();
   if (!user) return { ok: false, error: "Not signed in" };
-  const { data: existing } = await supabase.from("item_images").select("position").eq("item_id", itemId);
+  const { data: existing } = await db.from("item_images").select("position").eq("item_id", itemId);
   const positions = (existing ?? []).map((i: { position: number }) => i.position);
-  const { error } = await supabase.from("item_images").insert({
+  const { error } = await db.from("item_images").insert({
     item_id: itemId,
     url,
     original_url: url,
@@ -159,22 +151,21 @@ export async function addImage(itemId: string, url: string): Promise<ActionResul
 }
 
 export async function removeImage(imageId: string): Promise<ActionResult> {
-  const { supabase, user } = await getUser();
+  const { db, user } = await getUser();
   if (!user) return { ok: false, error: "Not signed in" };
-  const { data: image, error } = await supabase.from("item_images").delete().eq("id", imageId).select().maybeSingle();
+  const { data: image, error } = await db.from("item_images").delete().eq("id", imageId).select().maybeSingle();
   if (error) return { ok: false, error: error.message };
   if (image) {
-    const paths = storagePaths([image as ImageFiles]);
-    if (paths.length) await supabase.storage.from("item-images").remove(paths);
+    await removePhotos(user.id, imageUrls([image as ImageFiles]));
     if (image.is_primary) {
-      const { data: next } = await supabase
+      const { data: next } = await db
         .from("item_images")
         .select("id")
         .eq("item_id", image.item_id)
         .order("position")
         .limit(1)
         .maybeSingle();
-      if (next) await supabase.from("item_images").update({ is_primary: true }).eq("id", next.id);
+      if (next) await db.from("item_images").update({ is_primary: true }).eq("id", next.id);
     }
   }
   revalidatePath("/", "layout");
@@ -182,21 +173,21 @@ export async function removeImage(imageId: string): Promise<ActionResult> {
 }
 
 export async function setPrimaryImage(itemId: string, imageId: string): Promise<ActionResult> {
-  const { supabase, user } = await getUser();
+  const { db, user } = await getUser();
   if (!user) return { ok: false, error: "Not signed in" };
   // Clear first: a partial unique index allows only one primary per item.
-  const { error: clearError } = await supabase.from("item_images").update({ is_primary: false }).eq("item_id", itemId);
+  const { error: clearError } = await db.from("item_images").update({ is_primary: false }).eq("item_id", itemId);
   if (clearError) return { ok: false, error: clearError.message };
-  const { error } = await supabase.from("item_images").update({ is_primary: true }).eq("id", imageId);
+  const { error } = await db.from("item_images").update({ is_primary: true }).eq("id", imageId);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/", "layout");
   return { ok: true, data: undefined };
 }
 
 export async function setFavorite(id: string, favorite: boolean): Promise<ActionResult> {
-  const { supabase, user } = await getUser();
+  const { db, user } = await getUser();
   if (!user) return { ok: false, error: "Not signed in" };
-  const { error } = await supabase.from("items").update({ favorite }).eq("id", id);
+  const { error } = await db.from("items").update({ favorite }).eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/", "layout");
   return { ok: true, data: undefined };
@@ -204,16 +195,16 @@ export async function setFavorite(id: string, favorite: boolean): Promise<Action
 
 /** Adds to the end of the outfit. Adding an item it already contains changes nothing. */
 export async function addToOutfit(outfitId: string, itemId: string): Promise<ActionResult> {
-  const { supabase, user } = await getUser();
+  const { db, user } = await getUser();
   if (!user) return { ok: false, error: "Not signed in" };
   const [{ data: existing, error: readError }, { data: item }] = await Promise.all([
-    supabase.from("outfit_items").select("position, z_index").eq("outfit_id", outfitId),
-    supabase.from("items").select("category").eq("id", itemId).maybeSingle(),
+    db.from("outfit_items").select("position, z_index").eq("outfit_id", outfitId),
+    db.from("items").select("category").eq("id", itemId).maybeSingle(),
   ]);
   if (readError) return { ok: false, error: readError.message };
   const rows = (existing ?? []) as { position: number; z_index: number }[];
   const positions = rows.map((row) => row.position);
-  const { error } = await supabase
+  const { error } = await db
     .from("outfit_items")
     .upsert(
       { ...defaultPlacement(itemId, item?.category ?? null, rows), outfit_id: outfitId, position: positions.length ? Math.max(...positions) + 1 : 0 },
@@ -226,9 +217,9 @@ export async function addToOutfit(outfitId: string, itemId: string): Promise<Act
 
 /** Adds a finished cutout to a saved photo. It goes on display unless the user chose the original. */
 export async function attachCutout(itemId: string, originalUrl: string, cutoutUrl: string, display: boolean): Promise<ActionResult> {
-  const { supabase, user } = await getUser();
+  const { db, user } = await getUser();
   if (!user) return { ok: false, error: "Not signed in" };
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("item_images")
     .update({ cutout_url: cutoutUrl, ...(display ? { url: cutoutUrl } : {}) })
     .eq("item_id", itemId)
@@ -237,21 +228,20 @@ export async function attachCutout(itemId: string, originalUrl: string, cutoutUr
   if (error) return { ok: false, error: error.message };
   if (!data?.length) {
     // The photo was deleted while its cutout was being made.
-    const path = storagePath(cutoutUrl);
-    if (path) await supabase.storage.from("item-images").remove([path]);
+    await removePhotos(user.id, [cutoutUrl]);
   }
   revalidatePath("/", "layout");
   return { ok: true, data: undefined };
 }
 
 export async function setImageVersion(imageId: string, version: "original" | "cutout"): Promise<ActionResult> {
-  const { supabase, user } = await getUser();
+  const { db, user } = await getUser();
   if (!user) return { ok: false, error: "Not signed in" };
-  const { data: image, error: readError } = await supabase.from("item_images").select("original_url, cutout_url").eq("id", imageId).maybeSingle();
+  const { data: image, error: readError } = await db.from("item_images").select("original_url, cutout_url").eq("id", imageId).maybeSingle();
   if (readError) return { ok: false, error: readError.message };
   const url = version === "cutout" ? image?.cutout_url : image?.original_url;
   if (!url) return { ok: false, error: "That version isn't available" };
-  const { error } = await supabase.from("item_images").update({ url }).eq("id", imageId);
+  const { error } = await db.from("item_images").update({ url }).eq("id", imageId);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/", "layout");
   return { ok: true, data: undefined };
@@ -259,8 +249,7 @@ export async function setImageVersion(imageId: string, version: "original" | "cu
 
 /** Removes files for a photo taken off a form before the item was saved. */
 export async function discardUploads(urls: string[]): Promise<void> {
-  const { supabase, user } = await getUser();
+  const { user } = await getUser();
   if (!user) return;
-  const paths = urls.map(storagePath).filter((p): p is string => p !== null);
-  if (paths.length) await supabase.storage.from("item-images").remove(paths);
+  await removePhotos(user.id, urls);
 }

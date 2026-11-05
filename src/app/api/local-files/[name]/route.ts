@@ -12,6 +12,7 @@ const TYPES: Record<string, string> = {
   heif: "image/heif",
 };
 
+/** Serves photos added in local mode before /api/photos existed. Local mode only. */
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ name: string }> }) {
   const { name } = await params;
   // Only names this app generated can match, which also rules out path traversal.

@@ -1,10 +1,9 @@
+import type { DbClient } from "./db/client";
+
 // Sample data: 15 made-up items across every status, plus sales, listings, wears,
 // outfits, expenses and a wishlist. Local mode loads it on first run, and
-// scripts/seed.ts loads it into Supabase.
+// scripts/seed.ts loads it into Neon.
 
-// Works with both the Supabase client and the local client.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Client = { from: (table: string) => any };
 
 function daysAgo(days: number): string {
   return new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
@@ -84,10 +83,10 @@ const ITEMS: SeedItem[] = [
 
 export const SAMPLE_ITEM_COUNT = ITEMS.length;
 
-export async function seedSampleData(supabase: Client, userId: string): Promise<void> {
+export async function seedSampleData(db: DbClient, userId: string): Promise<void> {
   // Example fee presets. Replace them with your real rates in Settings.
   check(
-    await supabase.from("platforms").upsert(
+    await db.from("platforms").upsert(
       [
         { user_id: userId, name: "Vinted", fee_percent: 0, fee_fixed: 0 },
         { user_id: userId, name: "Ricardo", fee_percent: 9, fee_fixed: 0 },
@@ -103,12 +102,12 @@ export async function seedSampleData(supabase: Client, userId: string): Promise<
     "Platforms",
   );
 
-  check(await supabase.from("user_settings").upsert({ user_id: userId, monthly_profit_goal_chf: 500 }), "Profit goal");
+  check(await db.from("user_settings").upsert({ user_id: userId, monthly_profit_goal_chf: 500 }), "Profit goal");
 
   const ids = new Map<string, string>();
   for (const item of ITEMS) {
     const row = check(
-      await supabase
+      await db
         .from("items")
         .insert({
           user_id: userId,
@@ -136,13 +135,13 @@ export async function seedSampleData(supabase: Client, userId: string): Promise<
     ids.set(item.key, row.id);
 
     check(
-      await supabase.from("item_images").insert({ item_id: row.id, url: `/placeholders/${item.image}.svg`, original_url: `/placeholders/${item.image}.svg`, is_primary: true, position: 0 }),
+      await db.from("item_images").insert({ item_id: row.id, url: `/placeholders/${item.image}.svg`, original_url: `/placeholders/${item.image}.svg`, is_primary: true, position: 0 }),
       `Image ${item.key}`,
     );
 
     if (item.listing) {
       const listing = check(
-        await supabase
+        await db
           .from("listings")
           .insert({ item_id: row.id, platform: item.listing.platform, list_price: item.listing.price, listed_at: stamp(item.listing.days) })
           .select("id")
@@ -151,7 +150,7 @@ export async function seedSampleData(supabase: Client, userId: string): Promise<
       ) as { id: string };
       if (item.listing.repriced) {
         check(
-          await supabase.from("price_changes").insert({
+          await db.from("price_changes").insert({
             listing_id: listing.id,
             old_price: item.listing.repriced.from,
             new_price: item.listing.price,
@@ -164,7 +163,7 @@ export async function seedSampleData(supabase: Client, userId: string): Promise<
 
     if (item.sale) {
       check(
-        await supabase.from("listings").insert({
+        await db.from("listings").insert({
           item_id: row.id,
           platform: item.sale.platform,
           list_price: item.sale.listPrice,
@@ -173,7 +172,7 @@ export async function seedSampleData(supabase: Client, userId: string): Promise<
         `Sold listing ${item.key}`,
       );
       check(
-        await supabase.from("sales").insert({
+        await db.from("sales").insert({
           item_id: row.id,
           platform: item.sale.platform,
           sale_price: item.sale.price,
@@ -192,19 +191,19 @@ export async function seedSampleData(supabase: Client, userId: string): Promise<
 
   // Cross-listed: selling this one prompts to delist on the other platform.
   check(
-    await supabase.from("listings").insert({ item_id: ids.get("sneakers"), platform: "Grailed", list_price: 155, listed_at: stamp(10) }),
+    await db.from("listings").insert({ item_id: ids.get("sneakers"), platform: "Grailed", list_price: 155, listed_at: stamp(10) }),
     "Second listing",
   );
 
   const lot = check(
-    await supabase.from("lots").insert({ user_id: userId, name: "Estate sale bundle", total_cost_chf: 150, bought_at: daysAgo(20), source: "Estate sale" }).select("id").single(),
+    await db.from("lots").insert({ user_id: userId, name: "Estate sale bundle", total_cost_chf: 150, bought_at: daysAgo(20), source: "Estate sale" }).select("id").single(),
     "Lot",
   ) as { id: string };
-  check(await supabase.from("items").update({ lot_id: lot.id }).in("id", [ids.get("knit"), ids.get("tote")]), "Lot items");
+  check(await db.from("items").update({ lot_id: lot.id }).in("id", [ids.get("knit"), ids.get("tote")]), "Lot items");
 
-  const { data: grailed } = await supabase.from("platforms").select("id").eq("user_id", userId).eq("name", "Grailed").single();
+  const { data: grailed } = await db.from("platforms").select("id").eq("user_id", userId).eq("name", "Grailed").single();
   check(
-    await supabase.from("offers").insert([
+    await db.from("offers").insert([
       { item_id: ids.get("parka"), platform_id: grailed?.id, amount_chf: 300, status: "declined", created_at: stamp(30) },
       { item_id: ids.get("parka"), platform_id: grailed?.id, amount_chf: 340, status: "pending", created_at: stamp(4) },
     ]),
@@ -212,7 +211,7 @@ export async function seedSampleData(supabase: Client, userId: string): Promise<
   );
 
   check(
-    await supabase.from("expenses").insert([
+    await db.from("expenses").insert([
       { user_id: userId, category: "Shipping supplies", amount_chf: 38.5, date: daysAgo(200), note: "Boxes and tape" },
       { user_id: userId, category: "Cleaning & repair", amount_chf: 45, date: daysAgo(90), note: "Resole" },
       { user_id: userId, category: "Shipping supplies", amount_chf: 22, date: daysAgo(40), note: "Mailers" },
@@ -222,7 +221,7 @@ export async function seedSampleData(supabase: Client, userId: string): Promise<
   );
 
   check(
-    await supabase.from("wishlist").insert([
+    await db.from("wishlist").insert([
       { user_id: userId, brand: "Lemaire", name: "Military parka", target_price: 450, notes: "Size 48 only" },
       { user_id: userId, brand: "Paraboot", name: "Chambord", target_price: 220 },
       { user_id: userId, brand: "Margaret Howell", name: "Linen shirt", target_price: 110 },
@@ -231,11 +230,11 @@ export async function seedSampleData(supabase: Client, userId: string): Promise<
   );
 
   const canvas = check(
-    await supabase.from("outfits").insert({ user_id: userId, name: "Office, cold day", mode: "canvas", occasion: "Work", canvas_data: { version: 1 } }).select("id").single(),
+    await db.from("outfits").insert({ user_id: userId, name: "Office, cold day", mode: "canvas", occasion: "Work", canvas_data: { version: 1 } }).select("id").single(),
     "Canvas outfit",
   ) as { id: string };
   check(
-    await supabase.from("outfit_items").insert([
+    await db.from("outfit_items").insert([
       { outfit_id: canvas.id, item_id: ids.get("coat"), position: 0, x: 0.33, y: 0.36, scale: 0.6, rotation: -4, z_index: 0 },
       { outfit_id: canvas.id, item_id: ids.get("shirt"), position: 1, x: 0.68, y: 0.3, scale: 0.46, rotation: 5, z_index: 1 },
       { outfit_id: canvas.id, item_id: ids.get("boots"), position: 2, x: 0.68, y: 0.8, scale: 0.42, rotation: 0, z_index: 2 },
@@ -244,11 +243,11 @@ export async function seedSampleData(supabase: Client, userId: string): Promise<
   );
 
   const slots = check(
-    await supabase.from("outfits").insert({ user_id: userId, name: "Weekend", mode: "slots", occasion: "Everyday", canvas_data: { version: 1 } }).select("id").single(),
+    await db.from("outfits").insert({ user_id: userId, name: "Weekend", mode: "slots", occasion: "Everyday", canvas_data: { version: 1 } }).select("id").single(),
     "Slot outfit",
   ) as { id: string };
   check(
-    await supabase.from("outfit_items").insert(
+    await db.from("outfit_items").insert(
       ["shirt", "jeans", "boots", "tote"].map((key, position) => ({ outfit_id: slots.id, item_id: ids.get(key), position, z_index: position })),
     ),
     "Slot outfit items",
@@ -260,7 +259,7 @@ export async function seedSampleData(supabase: Client, userId: string): Promise<
   }
   const outfitOnDay: Record<number, string> = { 2: canvas.id, 3: slots.id };
   check(
-    await supabase.from("wear_logs").insert(
+    await db.from("wear_logs").insert(
       [...days.entries()].map(([day, item_ids]) => ({ user_id: userId, date: daysAgo(day), item_ids, outfit_id: outfitOnDay[day] ?? null })),
     ),
     "Wear logs",

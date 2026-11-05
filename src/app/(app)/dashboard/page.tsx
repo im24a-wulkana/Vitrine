@@ -5,7 +5,7 @@ import { localDate, money, moneyWhole, percent, signedMoney } from "@/lib/format
 import { groupSales, profitByMonth, sellThroughRate, summarize, type Period } from "@/lib/metrics";
 import { getAgingAlerts, getSettings } from "@/lib/queries";
 import { getExpenseRows, getSaleRows } from "@/lib/sales-data";
-import { requireUser } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/session";
 
 export const metadata = { title: "Business" };
 
@@ -29,18 +29,18 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const { period: rawPeriod } = await searchParams;
   const period: Period = rawPeriod === "year" || rawPeriod === "all" ? rawPeriod : "month";
 
-  const { supabase, user } = await requireUser();
+  const { db, user } = await requireUser();
   const today = localDate();
   const [sales, expenses, settings, { data: stock }] = await Promise.all([
-    getSaleRows(supabase),
-    getExpenseRows(supabase),
-    getSettings(supabase, user.id),
-    supabase.from("items").select("buy_price_chf, listings(list_price, delisted_at)").in("status", ["in_stock", "listed"]).limit(20000),
+    getSaleRows(db),
+    getExpenseRows(db),
+    getSettings(db, user.id),
+    db.from("items").select("buy_price_chf, listings(list_price, delisted_at)").in("status", ["in_stock", "listed"]).limit(20000),
   ]);
   const [alerts, { count: toShip }, { count: toDelist }] = await Promise.all([
-    getAgingAlerts(supabase, settings, today),
-    supabase.from("sales").select("id", { count: "exact", head: true }).eq("shipping_status", "to_ship"),
-    supabase.from("listings").select("id", { count: "exact", head: true }).eq("needs_delisting", true),
+    getAgingAlerts(db, settings, today),
+    db.from("sales").select("id", { count: "exact", head: true }).eq("shipping_status", "to_ship"),
+    db.from("listings").select("id", { count: "exact", head: true }).eq("needs_delisting", true),
   ]);
   const goal = settings.monthly_profit_goal_chf === null ? null : Number(settings.monthly_profit_goal_chf);
   const monthNet = summarize(sales, expenses, "month", today).netProfit;

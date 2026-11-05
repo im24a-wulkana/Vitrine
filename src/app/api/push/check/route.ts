@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createDbClient } from "@/lib/db/client";
+import { ownerRunner } from "@/lib/db/neon";
 import { localDate } from "@/lib/format";
 import { isLocalMode } from "@/lib/mode";
 import { runPushCheck } from "@/lib/push/check";
@@ -16,11 +17,12 @@ function authorized(request: NextRequest): boolean {
 
 /** The scheduled check for every account with a subscribed device. Vercel Cron calls this. */
 export async function GET(request: NextRequest) {
-  if (isLocalMode) return NextResponse.json({ error: "Scheduled checks need Supabase. Use Settings to check now." }, { status: 404 });
+  if (isLocalMode) return NextResponse.json({ error: "Scheduled checks need the hosted database. Use Settings to check now." }, { status: 404 });
   if (!authorized(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!isPushConfigured() || !process.env.SUPABASE_SERVICE_ROLE_KEY) return NextResponse.json({ error: "Not configured" }, { status: 503 });
+  if (!isPushConfigured()) return NextResponse.json({ error: "Not configured" }, { status: 503 });
 
-  const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL as string, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+  // Reads across accounts, so runPushCheck filters every query by user id.
+  const admin = createDbClient(ownerRunner());
   const { data, error } = await admin.from("push_subscriptions").select("user_id");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
@@ -28,7 +30,7 @@ export async function GET(request: NextRequest) {
   const today = localDate();
   let sent = 0;
   let failedUsers = 0;
-  for (const userId of new Set((data ?? []).map((row) => row.user_id as string))) {
+  for (const userId of new Set<string>((data ?? []).map((row: { user_id: string }) => row.user_id))) {
     try {
       sent += (await runPushCheck(admin, userId, today, send)).sent;
     } catch {

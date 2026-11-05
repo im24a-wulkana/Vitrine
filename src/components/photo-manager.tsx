@@ -20,7 +20,7 @@ export function PhotoManager({ itemId, images }: { itemId: string; images: ItemI
   async function makeCutout(originalUrl: string, photo: Blob) {
     setCutting((s) => new Set(s).add(originalUrl));
     try {
-      const cutoutUrl = await uploadPhotoBlob(await queueCutout(photo), itemId);
+      const cutoutUrl = await uploadPhotoBlob(await queueCutout(photo));
       const res = await attachCutout(itemId, originalUrl, cutoutUrl, true);
       if (!res.ok) setError(res.error);
     } catch {
@@ -41,7 +41,7 @@ export function PhotoManager({ itemId, images }: { itemId: string; images: ItemI
       for (const file of Array.from(files)) {
         try {
           const compressed = await compressPhoto(file);
-          const url = await uploadPhotoBlob(compressed, itemId);
+          const url = await uploadPhotoBlob(compressed);
           const res = await addImage(itemId, url);
           if (!res.ok) setError(res.error);
           else void makeCutout(url, compressed);

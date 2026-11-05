@@ -1,21 +1,21 @@
 import { ClosetView } from "@/components/closet-view";
 import { localDate } from "@/lib/format";
 import { isUnworn } from "@/lib/metrics";
-import { requireUser } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/session";
 import type { ClosetItem, Platform } from "@/lib/types";
 
 export const metadata = { title: "Closet" };
 
 export default async function ClosetPage() {
-  const { supabase } = await requireUser();
+  const { db } = await requireUser();
   const [{ data, error }, { data: platforms }, { data: outfits }] = await Promise.all([
-    supabase
+    db
       .from("items")
       .select("*, item_images(*), listings(*), sales(*), wears(worn_on)")
       .order("created_at", { ascending: false })
       .limit(5000),
-    supabase.from("platforms").select("*").order("name"),
-    supabase.from("outfits").select("id, name").order("created_at", { ascending: false }),
+    db.from("platforms").select("*").order("name"),
+    db.from("outfits").select("id, name").order("created_at", { ascending: false }),
   ]);
   if (error) throw new Error(error.message);
 
