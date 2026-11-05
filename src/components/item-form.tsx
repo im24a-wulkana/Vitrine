@@ -42,7 +42,6 @@ export function ItemForm({ brands, platforms, defaultCurrency, item, comps = [],
   const [price, setPrice] = useState(item ? String(item.buy_price) : "");
   const [currency, setCurrency] = useState(item?.buy_currency ?? defaultCurrency);
   const [priceChf, setPriceChf] = useState(item && item.buy_currency !== "CHF" ? String(item.buy_price_chf) : "");
-  const [rateState, setRateState] = useState<"idle" | "loading" | "failed">("idle");
   const [status, setStatus] = useState<AddStatus>("in_stock");
   const [category, setCategory] = useState(item?.category ?? "");
   const [listPlatform, setListPlatform] = useState(platforms[0]?.name ?? "");
@@ -100,21 +99,20 @@ export function ItemForm({ brands, platforms, defaultCurrency, item, comps = [],
   }, [brand, brands]);
 
   // Prefill the CHF value from the rate on the purchase date. It stays editable.
-  const [rate, setRate] = useState<number | null>(null);
+  const rateKey = `${currency}|${buyDate}`;
+  const [rateResult, setRateResult] = useState<{ key: string; rate: number | null } | null>(null);
+  const rate = rateResult?.key === rateKey ? rateResult.rate : null;
+  const rateState = rateResult?.key !== rateKey ? "loading" : rate === null ? "failed" : "idle";
   useEffect(() => {
     if (currency === "CHF") return;
     let cancelled = false;
-    setRate(null);
-    setRateState("loading");
     fetch(`/api/fx?from=${currency}&date=${buyDate}`)
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((b) => {
-        if (cancelled) return;
-        setRate(b.rate);
-        setRateState("idle");
+        if (!cancelled) setRateResult({ key: `${currency}|${buyDate}`, rate: b.rate });
       })
       .catch(() => {
-        if (!cancelled) setRateState("failed");
+        if (!cancelled) setRateResult({ key: `${currency}|${buyDate}`, rate: null });
       });
     return () => {
       cancelled = true;

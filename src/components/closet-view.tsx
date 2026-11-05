@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CheckSquare, Heart, LayoutGrid, MoreHorizontal, Search, SlidersHorizontal, Table2, X } from "lucide-react";
@@ -45,9 +45,19 @@ function unique(values: (string | null | undefined)[]): string[] {
 
 const iconButton = "grid size-11 place-items-center rounded-lg data-[active=true]:bg-foreground data-[active=true]:text-background";
 
+const VIEW_KEY = "vitrine.closetView";
+const viewListeners = new Set<() => void>();
+function subscribeToView(listener: () => void) {
+  viewListeners.add(listener);
+  return () => {
+    viewListeners.delete(listener);
+  };
+}
+
 export function ClosetView({ items, platforms, outfits, unwornCount }: { items: ClosetItem[]; platforms: Platform[]; outfits: { id: string; name: string }[]; unwornCount: number }) {
   const router = useRouter();
-  const [view, setView] = useState<"grid" | "table">("grid");
+  const savedView = useSyncExternalStore(subscribeToView, () => window.localStorage.getItem(VIEW_KEY), () => null);
+  const view: "grid" | "table" = savedView === "table" ? "table" : "grid";
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<ClosetTab>("All");
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
@@ -77,13 +87,9 @@ export function ClosetView({ items, platforms, outfits, unwornCount }: { items: 
     if (pressTimer.current) window.clearTimeout(pressTimer.current);
   };
 
-  useEffect(() => {
-    const saved = window.localStorage.getItem("vitrine.closetView");
-    if (saved === "table" || saved === "grid") setView(saved);
-  }, []);
   function changeView(next: "grid" | "table") {
-    setView(next);
-    window.localStorage.setItem("vitrine.closetView", next);
+    window.localStorage.setItem(VIEW_KEY, next);
+    viewListeners.forEach((listener) => listener());
   }
 
   const options = useMemo(

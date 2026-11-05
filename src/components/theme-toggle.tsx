@@ -1,19 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { Moon, Sun } from "lucide-react";
 import { saveTheme } from "@/lib/actions/records";
 
+function subscribeToTheme(listener: () => void) {
+  const observer = new MutationObserver(listener);
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+  return () => observer.disconnect();
+}
+
 /** Dark is the default. The choice is kept on this device, and an inline script in the root layout applies it before first paint. */
 export function ThemeToggle() {
-  const [dark, setDark] = useState(true);
-  useEffect(() => {
-    setDark(document.documentElement.classList.contains("dark"));
-  }, []);
+  const dark = useSyncExternalStore(subscribeToTheme, () => document.documentElement.classList.contains("dark"), () => true);
 
   function toggle() {
     const next = !dark;
-    setDark(next);
     document.documentElement.classList.toggle("dark", next);
     window.localStorage.setItem("vitrine.theme", next ? "dark" : "light");
     void saveTheme(next ? "dark" : "light");

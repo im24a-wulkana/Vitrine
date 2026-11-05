@@ -4,7 +4,7 @@ import { isLocalMode } from "@/lib/mode";
 
 const PUBLIC_PATHS = ["/login", "/auth/callback", "/offline"];
 
-export async function middleware(request: NextRequest) {
+export default async function proxy(request: NextRequest) {
   if (isLocalMode) {
     if (request.nextUrl.pathname !== "/login") return NextResponse.next();
     const url = request.nextUrl.clone();

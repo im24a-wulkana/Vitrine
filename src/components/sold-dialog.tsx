@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -45,8 +45,15 @@ export function SoldDialog({ target, platforms, onClose }: Props) {
   const [toDelist, setToDelist] = useState<{ id: string; platform: string }[]>([]);
   const [delisted, setDelisted] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    if (!target) return;
+  // Reset when a different item opens, and only then. The page refreshes its data
+  // right after a sale, and that must not wipe the delist prompt that follows it.
+  const [openFor, setOpenFor] = useState<string | null>(null);
+  if ((target?.id ?? null) !== openFor) {
+    setOpenFor(target?.id ?? null);
+    if (target) resetFor(target);
+  }
+
+  function resetFor(target: SoldTarget) {
     const known = platforms.find((p) => p.name === target.platform);
     const chosen = known?.name ?? platforms[0]?.name ?? "";
     const startPrice = target.list_price ?? null;
@@ -59,10 +66,7 @@ export function SoldDialog({ target, platforms, onClose }: Props) {
     setError(null);
     setToDelist([]);
     setDelisted(new Set());
-    // Only when a different item opens. The page refreshes its data right after a
-    // sale, and that must not wipe the delist prompt that follows it.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [target?.id]);
+  }
 
   // The fee preset follows platform and price until the user types their own.
   function recalc(nextPlatform: string, nextPrice: string) {
