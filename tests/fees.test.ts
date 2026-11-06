@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { estimateFees, paypalPay, paypalReceive } from "../src/lib/fees";
-import { feeFor } from "../src/lib/metrics";
+import { feeFor, wardrobeValue } from "../src/lib/metrics";
 
 const published = (name: string, price: number) => estimateFees({ name, fee_percent: 0, fee_fixed: 0 }, price);
 
@@ -99,4 +99,19 @@ test("PayPal: nothing to calculate without an amount or a rate", () => {
 test("PayPal: a tiny sale can't lose more than it received", () => {
   const r = paypalReceive({ amount: 0.1, currency: "CHF", rate: 1, spreadPercent: 0, goods: true, region: "ch" });
   assert.equal(r.netChf, 0);
+});
+
+test("wardrobe value counts everything still owned, and nothing sold", () => {
+  const value = wardrobeValue([
+    { status: "personal", buy_price_chf: 3763.24 },
+    { status: "in_stock", buy_price_chf: "2368.86" },
+    { status: "listed", buy_price_chf: 100 },
+    { status: "sold", buy_price_chf: 999 },
+    { status: "personal", buy_price_chf: null },
+  ]);
+  assert.equal(value.total, 6232.1);
+  assert.equal(value.count, 4);
+  assert.deepEqual(value.byStatus.personal, { count: 2, total: 3763.24 });
+  assert.deepEqual(value.byStatus.listed, { count: 1, total: 100 });
+  assert.deepEqual(wardrobeValue([]).total, 0);
 });

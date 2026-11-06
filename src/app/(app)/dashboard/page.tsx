@@ -2,7 +2,7 @@ import Link from "next/link";
 import { DashboardCharts } from "@/components/charts-client";
 import { BUSINESS_LINKS } from "@/lib/business-links";
 import { localDate, money, moneyWhole, percent, signedMoney } from "@/lib/format";
-import { groupSales, profitByMonth, sellThroughRate, summarize, type Period } from "@/lib/metrics";
+import { groupSales, profitByMonth, sellThroughRate, summarize, wardrobeValue, type Period } from "@/lib/metrics";
 import { getAgingAlerts, getSettings } from "@/lib/queries";
 import { getExpenseRows, getSaleRows } from "@/lib/sales-data";
 import { requireUser } from "@/lib/session";
@@ -31,11 +31,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
   const { db, user } = await requireUser();
   const today = localDate();
-  const [sales, expenses, settings, { data: stock }] = await Promise.all([
+  const [sales, expenses, settings, { data: stock }, { data: owned }] = await Promise.all([
     getSaleRows(db),
     getExpenseRows(db),
     getSettings(db, user.id),
     db.from("items").select("buy_price_chf, listings(list_price, delisted_at)").in("status", ["in_stock", "listed"]).limit(20000),
+    db.from("items").select("status, buy_price_chf").neq("status", "sold").limit(20000),
   ]);
   const [alerts, { count: toShip }, { count: toDelist }] = await Promise.all([
     getAgingAlerts(db, settings, today),
@@ -52,6 +53,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     const prices = i.listings.filter((l) => !l.delisted_at && l.list_price !== null).map((l) => Number(l.list_price));
     return sum + (prices.length ? Math.max(...prices) : 0);
   }, 0);
+
+  const wardrobe = wardrobeValue((owned ?? []) as { status: string; buy_price_chf: number }[]);
 
   return (
     <div className="flex flex-col gap-10">
@@ -89,6 +92,23 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         <Stat label="Days to sell" value={summary.avgDaysToSell === null ? "—" : String(Math.round(summary.avgDaysToSell))} note="average" />
         <Stat label="Sell-through" value={percent(sellThroughRate(sales.length, stockRows.length))} note={`${sales.length} of ${sales.length + stockRows.length}, all time`} />
       </dl>
+
+      <section aria-label="Wardrobe value">
+        <p className="eyebrow">Wardrobe value, CHF</p>
+        <p className="num mt-1 text-4xl leading-none tracking-tight">{money(wardrobe.total)}</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          What you paid for the <span className="num">{wardrobe.count}</span> {wardrobe.count === 1 ? "item" : "items"} you still own. Today, not this period.
+        </p>
+        <dl className="num mt-3 grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-1 text-sm">
+          {([["Personal", wardrobe.byStatus.personal], ["In stock", wardrobe.byStatus.in_stock], ["For sale", wardrobe.byStatus.listed]] as const).map(([label, group]) => (
+            <div key={label} className="contents">
+              <dt className="font-sans text-muted-foreground">{label}</dt>
+              <dd className="text-right text-muted-foreground">{group.count}</dd>
+              <dd className="text-right">{money(group.total)}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
 
       {goal !== null && goal > 0 && (
         <section aria-label="Monthly profit goal">

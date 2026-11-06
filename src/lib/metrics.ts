@@ -283,3 +283,25 @@ export function lotSummary(items: { buy_price_chf?: number; sales: { sale_price:
   const recovered = roundMoney(sold.reduce((sum, i) => sum + Number(i.sales?.net_profit ?? 0) + Number(i.buy_price_chf ?? 0), 0));
   return { count: items.length, sold: sold.length, revenue, profit, recovered };
 }
+
+export interface WardrobeValue {
+  total: number;
+  count: number;
+  byStatus: { personal: { count: number; total: number }; in_stock: { count: number; total: number }; listed: { count: number; total: number } };
+}
+
+/** What everything you still own cost you. Sold items don't count. */
+export function wardrobeValue(rows: { status: string; buy_price_chf: number | string | null }[]): WardrobeValue {
+  const byStatus = { personal: { count: 0, total: 0 }, in_stock: { count: 0, total: 0 }, listed: { count: 0, total: 0 } };
+  for (const row of rows) {
+    if (row.status !== "personal" && row.status !== "in_stock" && row.status !== "listed") continue;
+    byStatus[row.status].count += 1;
+    byStatus[row.status].total = roundMoney(byStatus[row.status].total + Number(row.buy_price_chf ?? 0));
+  }
+  const groups = Object.values(byStatus);
+  return {
+    total: roundMoney(groups.reduce((sum, g) => sum + g.total, 0)),
+    count: groups.reduce((sum, g) => sum + g.count, 0),
+    byStatus,
+  };
+}
