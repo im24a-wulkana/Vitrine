@@ -1,12 +1,12 @@
+import { estimateFees, type FeePlatform } from "./fees";
 import { daysBetween, roundMoney } from "./format";
 
 // ---------------------------------------------------------------------------
 // Fees
 // ---------------------------------------------------------------------------
 
-export function feeFor(platform: { fee_percent: number; fee_fixed: number } | undefined, price: number): number {
-  if (!platform || !(price > 0)) return 0;
-  return roundMoney((price * Number(platform.fee_percent)) / 100 + Number(platform.fee_fixed));
+export function feeFor(platform: FeePlatform | undefined, price: number): number {
+  return estimateFees(platform, price).total;
 }
 
 /** Same formula as the sales.net_profit generated column. */

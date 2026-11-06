@@ -89,11 +89,11 @@ export async function seedSampleData(db: DbClient, userId: string): Promise<void
     await db.from("platforms").upsert(
       [
         { user_id: userId, name: "Vinted", fee_percent: 0, fee_fixed: 0 },
-        { user_id: userId, name: "Ricardo", fee_percent: 9, fee_fixed: 0 },
-        { user_id: userId, name: "Grailed", fee_percent: 9, fee_fixed: 1 },
-        { user_id: userId, name: "Vestiaire Collective", fee_percent: 15, fee_fixed: 0 },
+        { user_id: userId, name: "Ricardo", fee_percent: 0, fee_fixed: 0 },
+        { user_id: userId, name: "Grailed", fee_percent: 0, fee_fixed: 0 },
+        { user_id: userId, name: "Vestiaire Collective", fee_percent: 0, fee_fixed: 0 },
         { user_id: userId, name: "Tutti", fee_percent: 0, fee_fixed: 0 },
-        { user_id: userId, name: "Depop", fee_percent: 10, fee_fixed: 0 },
+        { user_id: userId, name: "Depop", fee_percent: 0, fee_fixed: 0 },
         { user_id: userId, name: "Instagram / private", fee_percent: 0, fee_fixed: 0 },
         { user_id: userId, name: "Other", fee_percent: 0, fee_fixed: 0 },
       ],

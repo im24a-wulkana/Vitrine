@@ -70,7 +70,7 @@ function SaleRow({ sale }: { sale: ShippingSale }) {
             save(sale.shipping_status);
           }}
         >
-          <Input aria-label={`Tracking number for ${sale.items.name}`} placeholder="Tracking number" className="num h-9 text-sm" value={tracking} onChange={(e) => setTracking(e.target.value)} onBlur={() => { if (tracking !== (sale.tracking_number ?? "")) save(sale.shipping_status); }} />
+          <Input aria-label={`Tracking number for ${sale.items.name}`} placeholder="Tracking number" className="num h-11" value={tracking} onChange={(e) => setTracking(e.target.value)} onBlur={() => { if (tracking !== (sale.tracking_number ?? "")) save(sale.shipping_status); }} />
           {next ? (
             <Button type="button" size="sm" disabled={pending} onClick={() => save(next[0])}>{next[1]}</Button>
           ) : sale.shipping_status === "delivered" ? (

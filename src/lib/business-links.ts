@@ -4,6 +4,8 @@ export const BUSINESS_LINKS = [
   { href: "/alerts", label: "Aging" },
   { href: "/lots", label: "Lots" },
   { href: "/calculator", label: "Max buy" },
+  { href: "/fees", label: "Fees" },
+  { href: "/paypal", label: "PayPal currency" },
   { href: "/expenses", label: "Expenses" },
   { href: "/wishlist", label: "Wishlist" },
   { href: "/import", label: "Import / export" },

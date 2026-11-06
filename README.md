@@ -43,7 +43,7 @@ npm run dev
 
 ## Before you use it for real
 
-- **Set your fees.** New accounts get a few platforms at 0% in **Settings**. Enter your actual rates, because the sold dialog uses them for its fee preset.
+- **Check your fees.** Platforms at 0% in **Settings** use the published fees in `src/lib/fees.ts`, checked November 2026. Enter a rate there if yours differs, for example for a Ricardo category other than fashion. The sold dialog and calculators use the same numbers.
 - **Keep the database URL private.** It connects as the database owner.
 
 ## Who can get in

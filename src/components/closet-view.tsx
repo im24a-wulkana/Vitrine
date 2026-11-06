@@ -183,7 +183,7 @@ export function ClosetView({ items, platforms, outfits, unwornCount }: { items: 
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-end justify-between gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-x-3">
         <h1 className="page-title">Closet</h1>
         <div className="flex items-center gap-1">
           <button type="button" aria-label="Select items" aria-pressed={selecting} className={iconButton} data-active={selecting} onClick={() => (selecting ? stopSelecting() : setSelecting(true))}>

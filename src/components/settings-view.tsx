@@ -208,7 +208,7 @@ export function SettingsView({ settings, platforms, email, pushConfigured, local
           {platforms.map((p) => <PlatformRow key={p.id} platform={p} />)}
           <PlatformRow />
         </ul>
-        <p className="mt-2 text-xs text-muted-foreground">New accounts start at 0% because fees vary by account. Enter your own rates. They fill in automatically when you mark an item sold.</p>
+        <p className="mt-2 text-xs text-muted-foreground">At 0%, a platform uses its published fees. Enter a rate if yours differs. Either one fills in automatically when you mark an item sold.</p>
       </section>
 
       {localMode ? <LocalData /> : <section className="flex items-center justify-between gap-4 border-t pt-4 text-sm">
