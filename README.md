@@ -52,7 +52,13 @@ npm run dev
 
 ## Who can get in
 
-Neon Auth can't turn off public sign-up yet, so anyone could create a login directly with Neon Auth. That login doesn't get them into Vitrine: the app only admits accounts in its own `auth.users` table, which only `npm run add-user` and `npm run seed` write to. The app has no sign-up form, and its own auth route refuses sign-ups.
+Neon Auth's public sign-up is on by default, so anyone could create a login directly with Neon Auth, including with Google. That login doesn't get them into Vitrine: the app only admits accounts in its own `auth.users` table, which only `npm run add-user` and `npm run seed` write to. The app has no sign-up form, and its own auth route refuses sign-ups.
+
+## Signing in with Google
+
+The login page has a **Continue with Google** button. It uses Neon's shared Google app, so Google's consent screen shows Neon's name rather than Vitrine's. To show your own, create a Google OAuth client with the redirect URI `{NEON_AUTH_BASE_URL}/callback/google` and add it under Auth in Neon.
+
+Google only proves who someone is. The access check still applies, so a first Google sign-in is refused until you run `npm run add-user -- that-email@gmail.com`, which lets that login in. Try signing in again afterwards.
 
 ## How accounts stay separate
 
