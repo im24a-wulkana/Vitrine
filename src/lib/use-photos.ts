@@ -28,6 +28,11 @@ export interface SavedImage {
   cutout_url: string | null;
 }
 
+function releasePreviews(photo: Photo) {
+  URL.revokeObjectURL(photo.preview);
+  if (photo.cutoutPreview) URL.revokeObjectURL(photo.cutoutPreview);
+}
+
 /** Compresses, uploads and cuts out each photo in the background, so the form stays usable. */
 export function usePhotos() {
   const [photos, setPhotos] = useState<Photo[]>([]);
@@ -74,6 +79,7 @@ export function usePhotos() {
 
   const remove = useCallback((photo: Photo) => {
     setPhotos((all) => all.filter((p) => p.key !== photo.key));
+    releasePreviews(photo);
     // Wait for uploads in progress, so a removed photo doesn't leave files behind.
     Promise.allSettled([photo.originalPromise, photo.cutoutPromise]).then((results) => {
       const urls = results.flatMap((r) => (r.status === "fulfilled" && r.value ? [r.value] : []));
@@ -81,7 +87,12 @@ export function usePhotos() {
     });
   }, []);
 
-  const clear = useCallback(() => setPhotos([]), []);
+  const clear = useCallback(() => {
+    setPhotos((all) => {
+      all.forEach(releasePreviews);
+      return [];
+    });
+  }, []);
 
   return { photos, add, setView, remove, clear };
 }
