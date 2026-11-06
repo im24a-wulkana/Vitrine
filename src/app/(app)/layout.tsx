@@ -1,5 +1,6 @@
 import { Nav } from "@/components/nav";
 import { BackButton, InstallHint } from "@/components/phone-shell";
+import { ScrollMemory } from "@/components/scroll-memory";
 import { ThemeSync } from "@/components/theme-sync";
 import { localDate } from "@/lib/format";
 import { getAgingAlerts, getSettings } from "@/lib/queries";
@@ -21,6 +22,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <>
       <ThemeSync theme={settings.theme} />
       <Nav alertCount={alerts.length + (toShip ?? 0)} />
+      <ScrollMemory />
       <div className="md:pl-56">
         <main className="app-main mx-auto max-w-6xl">
           <BackButton />

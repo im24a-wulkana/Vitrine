@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { recallClosetView, rememberClosetView } from "@/lib/closet-memory";
 import { CheckSquare, Heart, LayoutGrid, MoreHorizontal, Search, SlidersHorizontal, Table2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -58,10 +59,12 @@ export function ClosetView({ items, platforms, outfits, unwornCount }: { items: 
   const router = useRouter();
   const savedView = useSyncExternalStore(subscribeToView, () => window.localStorage.getItem(VIEW_KEY), () => null);
   const view: "grid" | "table" = savedView === "table" ? "table" : "grid";
-  const [query, setQuery] = useState("");
-  const [tab, setTab] = useState<ClosetTab>("All");
-  const [filters, setFilters] = useState<Filters>(NO_FILTERS);
-  const [sort, setSort] = useState<SortKey>("newest");
+  const [remembered] = useState(() => recallClosetView<{ query: string; tab: ClosetTab; filters: Filters; sort: SortKey }>());
+  const [query, setQuery] = useState(remembered?.query ?? "");
+  const [tab, setTab] = useState<ClosetTab>(remembered?.tab ?? "All");
+  const [filters, setFilters] = useState<Filters>(remembered?.filters ?? NO_FILTERS);
+  const [sort, setSort] = useState<SortKey>(remembered?.sort ?? "newest");
+  useEffect(() => rememberClosetView({ query, tab, filters, sort }), [query, tab, filters, sort]);
   const [filterOpen, setFilterOpen] = useState(false);
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
