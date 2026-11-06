@@ -429,7 +429,7 @@ export function ItemForm({ brands, platforms, defaultCurrency, item, comps = [],
       </div>
 
       {!showMore ? (
-        <button type="button" className="self-start py-1 text-sm underline underline-offset-4" onClick={() => setShowMore(true)}>
+        <button type="button" className="min-h-11 self-start py-1 text-sm underline underline-offset-4" onClick={() => setShowMore(true)}>
           More details
         </button>
       ) : (
@@ -510,13 +510,13 @@ export function ItemForm({ brands, platforms, defaultCurrency, item, comps = [],
 
       {error && <p role="alert" className="border border-foreground px-3 py-2 text-sm font-medium">{error}</p>}
 
-      <div className="flex flex-col gap-2">
+      <div className="sticky-actions grid auto-cols-fr grid-flow-col gap-2 md:grid-flow-row">
         <Button type="submit" size="lg" disabled={pending}>
           {pending ? "Saving…" : editing ? "Save changes" : "Save item"}
         </Button>
         {!editing && (
           <Button type="button" size="lg" variant="outline" disabled={pending} onClick={() => save(true)}>
-            Save and add another
+            Save and next
           </Button>
         )}
       </div>

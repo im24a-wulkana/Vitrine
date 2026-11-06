@@ -65,7 +65,7 @@ Neon's owner role bypasses row level security, so every query from a signed-in p
 3. In the project's **Storage** tab, create a **Blob** store with **private** access. You can't change the access mode later.
 4. In Neon, under Auth > Configuration > Domains, add your Vercel address, and turn off **Allow Localhost** in production.
 
-To install it on a phone, open the deployed site and choose **Add to Home Screen**.
+To install it on an iPhone, open the site in Safari, tap **Share**, then **Add to Home Screen**. Launch screens for current iPhones are in `public/icons/splash`.
 
 ## How the numbers work
 

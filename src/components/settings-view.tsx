@@ -134,7 +134,7 @@ function LocationSettings({ city, hasLocation }: { city: string | null; hasLocat
       {hasLocation && (
         <button
           type="button"
-          className="self-start py-1 text-sm text-muted-foreground underline underline-offset-4"
+          className="min-h-11 self-start py-1 text-sm text-muted-foreground underline underline-offset-4"
           onClick={() =>
             start(async () => {
               const res = await clearLocation();

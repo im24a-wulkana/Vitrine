@@ -248,3 +248,130 @@
     border-radius: 0.75rem;
   }
 }
+
+/* iPhone and Home Screen app. Unlayered on purpose, so these win over utilities. */
+html {
+  background: var(--background);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  touch-action: manipulation;
+}
+@media (display-mode: standalone) {
+  html,
+  body {
+    overscroll-behavior-y: none;
+  }
+}
+
+/* The status bar floats over the app. Its text is always white, so this stays black in both themes. */
+.status-bar-fill {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 60;
+  height: env(safe-area-inset-top);
+  background: #050505;
+}
+
+.app-main {
+  padding: calc(1.5rem + env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) calc(7rem + env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+}
+.tab-bar {
+  padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+.fab {
+  bottom: calc(5rem + env(safe-area-inset-bottom));
+}
+.above-tabs {
+  bottom: calc(4rem + env(safe-area-inset-bottom));
+}
+.sticky-actions {
+  position: sticky;
+  z-index: 20;
+  bottom: calc(4rem + env(safe-area-inset-bottom));
+  margin: 0 -1rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--border);
+  background: var(--background);
+}
+@media (min-width: 768px) {
+  .app-main {
+    padding: 1.5rem 2rem 3rem;
+  }
+  .fab {
+    bottom: 2rem;
+  }
+  .above-tabs {
+    bottom: 0;
+  }
+  .sticky-actions {
+    position: static;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+}
+
+/* The keyboard covers anything pinned to the bottom, so these step aside while it's open. */
+html[data-keyboard] .tab-bar,
+html[data-keyboard] .fab,
+html[data-keyboard] .sticky-actions {
+  display: none;
+}
+
+/* Long sheets scroll, and sit above the keyboard. */
+.sheet {
+  margin-bottom: var(--keyboard-inset, 0px);
+  max-height: calc(100dvh - env(safe-area-inset-top) - var(--keyboard-inset, 0px) - 0.5rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+@media (min-width: 640px) {
+  .sheet {
+    margin-bottom: 0;
+    max-height: 90dvh;
+  }
+}
+
+/* Safari's own select and date styling ignores the app's look. */
+select.field {
+  appearance: none;
+  padding-right: 2rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23888' stroke-width='1.5'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+  background-position: right 0.625rem center;
+  background-repeat: no-repeat;
+}
+input[type="date"] {
+  appearance: none;
+  min-width: 0;
+  text-align: left;
+}
+input[type="date"]::-webkit-date-and-time-value {
+  min-height: 1.5em;
+  text-align: left;
+}
+
+/* Fingers, not a mouse. */
+@media (pointer: coarse) {
+  [data-slot="button"]:not([class*="absolute"]) {
+    min-height: 2.75rem;
+  }
+  .chip {
+    height: 2.5rem;
+  }
+  a:active,
+  button:active,
+  .chip:active {
+    opacity: 0.6;
+  }
+  a,
+  button {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto;
+  }
+}

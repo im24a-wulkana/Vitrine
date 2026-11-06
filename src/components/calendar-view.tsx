@@ -372,7 +372,7 @@ export function CalendarView({ month, today: serverToday, logs, pieces, outfits,
       <button
         type="button"
         aria-label="Log today's outfit"
-        className="fixed right-4 bottom-20 z-20 inline-flex h-14 items-center gap-2 rounded-full bg-foreground pr-5 pl-4 text-sm font-medium text-background shadow-lg md:bottom-8"
+        className="fab fixed right-4 z-20 inline-flex h-14 items-center gap-2 rounded-full bg-foreground pr-5 pl-4 text-sm font-medium text-background shadow-lg md:bottom-8"
         onClick={() => setOpenDate(today)}
       >
         <Plus className="size-5" /> Log

@@ -12,7 +12,7 @@ const TABS = [
   { href: "/outfits", label: "Outfits", icon: Layers },
   { href: "/items/new", label: "Add", icon: Plus, primary: true },
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
-  { href: "/dashboard", label: "Business", icon: BriefcaseBusiness, also: ["/insights", "/shipping", "/alerts", "/lots", "/calculator", "/expenses", "/wishlist", "/import", "/settings"] },
+  { href: "/dashboard", label: "Business", icon: BriefcaseBusiness, also: ["/insights", "/shipping", "/alerts", "/lots", "/calculator", "/fees", "/paypal", "/expenses", "/wishlist", "/import", "/settings"] },
 ];
 
 export function Nav({ alertCount }: { alertCount: number }) {
@@ -52,7 +52,7 @@ export function Nav({ alertCount }: { alertCount: number }) {
       </aside>
 
       {/* Mobile: thumb-reach tabs, with Add always one tap away */}
-      <nav aria-label="Main" className="pb-safe fixed inset-x-0 bottom-0 z-30 border-t bg-background md:hidden">
+      <nav aria-label="Main" className="tab-bar fixed inset-x-0 bottom-0 z-30 border-t bg-background md:hidden">
         <div className="grid h-16 grid-cols-5 items-center">
           {TABS.map((t) =>
             t.primary ? (

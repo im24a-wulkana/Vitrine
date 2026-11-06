@@ -37,7 +37,7 @@ export function GenerateOutfit({ pieces, aiEnabled, onUse }: { pieces: OutfitPie
     <>
       <button
         type="button"
-        className="fixed right-4 bottom-20 z-20 inline-flex h-14 items-center gap-2 rounded-full bg-foreground pr-5 pl-4 text-sm font-medium text-background shadow-lg md:bottom-8"
+        className="fab fixed right-4 z-20 inline-flex h-14 items-center gap-2 rounded-full bg-foreground pr-5 pl-4 text-sm font-medium text-background shadow-lg md:bottom-8"
         onClick={() => {
           setOpen(true);
           setResult(null);

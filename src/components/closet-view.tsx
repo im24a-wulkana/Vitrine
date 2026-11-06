@@ -210,7 +210,7 @@ export function ClosetView({ items, platforms, outfits, unwornCount }: { items: 
 
       <nav aria-label="Categories" className="no-scrollbar -mx-4 flex gap-5 overflow-x-auto border-b px-4 md:mx-0 md:px-0">
         {CLOSET_TABS.map((t) => (
-          <button key={t} type="button" aria-pressed={tab === t} onClick={() => setTab(t)} className={cn("eyebrow -mb-px min-w-11 border-b-2 border-transparent py-2.5 whitespace-nowrap", tab === t && "border-foreground text-foreground")}>
+          <button key={t} type="button" aria-pressed={tab === t} onClick={() => setTab(t)} className={cn("eyebrow -mb-px min-w-11 shrink-0 border-b-2 border-transparent py-2.5 whitespace-nowrap", tab === t && "border-foreground text-foreground")}>
             {t}
           </button>
         ))}
@@ -387,7 +387,7 @@ export function ClosetView({ items, platforms, outfits, unwornCount }: { items: 
       )}
 
       {selecting && (
-        <div className="pb-safe fixed inset-x-0 bottom-16 z-40 border-t bg-background p-3 md:bottom-0 md:left-56">
+        <div className="above-tabs fixed inset-x-0 z-40 border-t bg-background p-3 md:bottom-0 md:left-56">
           <div className="mx-auto flex max-w-6xl flex-col gap-2">
             <div className="flex items-center justify-between text-sm">
               <span className="num">{selected.size} selected</span>
