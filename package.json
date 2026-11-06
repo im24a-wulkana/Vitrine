@@ -9,8 +9,7 @@
     "lint": "eslint",
     "test": "tsx --test tests/*.test.ts",
     "seed": "tsx scripts/seed.ts",
-    "db:migrate": "tsx scripts/migrate.ts",
-    "add-user": "tsx scripts/add-user.ts"
+    "db:migrate": "tsx scripts/migrate.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.5.0",

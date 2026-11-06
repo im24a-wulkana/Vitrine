@@ -4,6 +4,9 @@ import { isLocalMode } from "@/lib/mode";
 
 type Context = { params: Promise<{ path: string[] }> };
 
+// Google is the only way in, so only these actions are passed on to Neon Auth.
+const ALLOWED_POSTS = new Set(["sign-in/social", "sign-out"]);
+
 const notFound = () => new NextResponse(null, { status: 404 });
 
 export async function GET(request: NextRequest, context: Context) {
@@ -11,14 +14,9 @@ export async function GET(request: NextRequest, context: Context) {
   return getAuth().handler().GET(request, context);
 }
 
-/**
- * Accounts are created by the add-user script, so this app won't pass sign-ups on.
- * This doesn't close Neon Auth's own public sign-up URL: a login made there still
- * can't get in, because of the check in findAllowedUser.
- */
 export async function POST(request: NextRequest, context: Context) {
   if (isLocalMode) return notFound();
   const { path } = await context.params;
-  if (path[0] === "sign-up") return NextResponse.json({ error: "Sign-up is closed" }, { status: 403 });
+  if (!ALLOWED_POSTS.has(path.join("/"))) return NextResponse.json({ error: "Use Google to sign in" }, { status: 403 });
   return getAuth().handler().POST(request, context);
 }

@@ -31,13 +31,9 @@ npm run db:migrate
 
 Safe to run again. It only applies what's new.
 
-### 3. Create your accounts
+### 3. Sign in
 
-```bash
-npm run add-user -- you@example.com "Your Name"
-```
-
-This prints a generated password once. Run it for each person. To load sample data instead, set `SEED_USER_EMAIL` and `SEED_USER_PASSWORD`, then run `npm run seed`.
+There's nothing to set up per person. The first Google sign-in creates that person's account. To load sample data into one, sign in once, set `SEED_USER_EMAIL`, then run `npm run seed`.
 
 ### 4. Start the app
 
@@ -52,17 +48,15 @@ npm run dev
 
 ## Who can get in
 
-Neon Auth's public sign-up is on by default, so anyone could create a login directly with Neon Auth, including with Google. That login doesn't get them into Vitrine: the app only admits accounts in its own `auth.users` table, which only `npm run add-user` and `npm run seed` write to. The app has no sign-up form, and its own auth route refuses sign-ups.
+Anyone with a Google account. Their first sign-in creates a private account, with its own settings, items and photos. Google is the only sign-in method: email and password are turned off in Neon Auth, and the app's auth route only passes on Google sign-in and sign-out.
 
-## Signing in with Google
+Sign-in uses Neon's shared Google app, so Google's consent screen shows Neon's name rather than Vitrine's. To show your own, create a Google OAuth client with the redirect URI `{NEON_AUTH_BASE_URL}/callback/google` and add it under Auth in Neon.
 
-The login page has a **Continue with Google** button. It uses Neon's shared Google app, so Google's consent screen shows Neon's name rather than Vitrine's. To show your own, create a Google OAuth client with the redirect URI `{NEON_AUTH_BASE_URL}/callback/google` and add it under Auth in Neon.
-
-Google only proves who someone is. The access check still applies, so a first Google sign-in is refused until you run `npm run add-user -- that-email@gmail.com`, which lets that login in. Try signing in again afterwards.
+Open sign-up has running costs: every signed-in person can use AI tagging on your Anthropic key, and adds to your Neon and Vercel Blob storage.
 
 ## How accounts stay separate
 
-Neon's owner role bypasses row level security, so every query from a signed-in person runs in a transaction that switches to the restricted `authenticated` role and sets their user id. The rules in `db/migrations` then apply. See `src/lib/db/neon.ts`. Only three things use the owner connection directly: the access check at sign-in, the scheduled notification job, and the setup scripts.
+Neon's owner role bypasses row level security, so every query from a signed-in person runs in a transaction that switches to the restricted `authenticated` role and sets their user id. The rules in `db/migrations` then apply. See `src/lib/db/neon.ts`. Only three things use the owner connection directly: creating an account on first sign-in, the scheduled notification job, and the setup scripts.
 
 ## Deploy to Vercel
 

@@ -4,6 +4,7 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import { PGlite } from "@electric-sql/pglite";
+import { ensureUser } from "../src/lib/db/accounts";
 import { createDbClient, type SqlRunner } from "../src/lib/db/client";
 import { BOOTSTRAP_SQL, grantRolesTo, migrate } from "../src/lib/db/migrate";
 import { scopedStatements } from "../src/lib/db/neon";
@@ -183,4 +184,23 @@ test("the driver sends the user's scope in one transaction and parses values lik
     if (previousUrl === undefined) delete process.env.DATABASE_URL;
     else process.env.DATABASE_URL = previousUrl;
   }
+});
+
+test("the first sign-in creates a private account, and later ones change nothing", async () => {
+  const owner: SqlRunner = { query: (text, params) => db.query(text, params) as ReturnType<SqlRunner["query"]> };
+  const NEW = "00000000-0000-4000-8000-00000000000c";
+
+  assert.deepEqual(await ensureUser(owner, NEW, "new@x.test"), { id: NEW, email: "new@x.test" });
+  const fresh = createDbClient(scoped(NEW));
+  assert.equal(((await fresh.from("user_settings").select("user_id")).data as unknown[]).length, 1, "gets settings");
+  assert.ok(((await fresh.from("platforms").select("name")).data as unknown[]).length > 0, "gets default platforms");
+  assert.deepEqual((await fresh.from("items").select("id")).data, [], "starts empty, sees no one else's items");
+
+  assert.deepEqual(await ensureUser(owner, NEW, "changed@x.test"), { id: NEW, email: "new@x.test" });
+  const { rows } = await db.query(`select id from auth.users where id = $1`, [NEW]);
+  assert.equal(rows.length, 1);
+
+  assert.equal(await ensureUser(owner, null, null), null, "no session");
+  assert.equal(await ensureUser(owner, "not-a-uuid'; drop table auth.users; --", "x@x.test"), null, "bad id");
+  await db.query(`delete from auth.users where id = $1`, [NEW]);
 });

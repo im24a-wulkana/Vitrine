@@ -56,7 +56,7 @@ export function userRunner(userId: string | null): SqlRunner {
 }
 
 /**
- * Bypasses row level security. Only for the sign-in access check, the scheduled
+ * Bypasses row level security. Only for creating accounts on first sign-in, the scheduled
  * notification job and setup scripts, which must filter by user id themselves.
  */
 export function ownerRunner(): SqlRunner {

@@ -4,7 +4,7 @@
 //   npm run seed            refuses to touch an account that already has items
 //   npm run seed -- --reset deletes that account's data first
 import { SAMPLE_ITEM_COUNT, seedSampleData } from "../src/lib/seed-data";
-import { ensureAccount, need, owner } from "./lib";
+import { accountFor, need, owner } from "./lib";
 
 async function main() {
   if (!process.env.DATABASE_URL) {
@@ -12,7 +12,7 @@ async function main() {
     return;
   }
   const email = need("SEED_USER_EMAIL");
-  const { id: userId } = await ensureAccount(email, need("SEED_USER_PASSWORD"), "Sample account");
+  const userId = await accountFor(email);
   const db = owner();
 
   const { count } = await db.from("items").select("id", { count: "exact", head: true }).eq("user_id", userId);
