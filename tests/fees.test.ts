@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { estimateFees, paypalPay, paypalReceive } from "../src/lib/fees";
+import { estimateFees, paypalPay, paypalReceive, swissPaypalFee } from "../src/lib/fees";
 import { feeFor, wardrobeValue } from "../src/lib/metrics";
 
 const published = (name: string, price: number) => estimateFees({ name, fee_percent: 0, fee_fixed: 0 }, price);
@@ -64,41 +64,54 @@ test("the sold dialog and max-buy preset use the same fees", () => {
   assert.equal(feeFor({ fee_percent: 9, fee_fixed: 0 }, 100), 9);
 });
 
-test("PayPal: EUR sale from the EEA, then converted to CHF", () => {
-  const r = paypalReceive({ amount: 100, currency: "EUR", rate: 0.92, spreadPercent: 3, goods: true, region: "eea" });
+const swissEea = swissPaypalFee("EUR", "eea");
+
+test("PayPal: EUR sale from the EEA to a Swiss account, converted to CHF", () => {
+  assert.deepEqual(swissEea, { percent: 4.69, fixed: 0.35 });
+  const r = paypalReceive({ amount: 100, currency: "EUR", home: "CHF", rate: 0.92, spreadPercent: 3, feePercent: swissEea.percent, fixedFee: swissEea.fixed });
   // Fee 4.69% + 0.35 EUR = 5.04 EUR. 94.96 EUR x 0.92 = 87.36 CHF, less 3%.
   assert.equal(r.fee, 5.04);
-  assert.equal(r.feeChf, 4.64);
-  assert.equal(r.marketChf, 92);
-  assert.equal(r.conversionCostChf, 2.62);
-  assert.equal(r.netChf, 84.74);
+  assert.equal(r.feeHome, 4.64);
+  assert.equal(r.marketHome, 92);
+  assert.equal(r.conversionCostHome, 2.62);
+  assert.equal(r.netHome, 84.74);
   assert.equal(r.lostPercent, 7.89);
 });
 
-test("PayPal: friends payment has no sale fee, CHF has no conversion", () => {
-  const friends = paypalReceive({ amount: 100, currency: "USD", rate: 0.82, spreadPercent: 3, goods: false, region: "other" });
+test("PayPal: works from any home currency, not just CHF", () => {
+  // A euro account paid in dollars, with that person's own fee entered.
+  const r = paypalReceive({ amount: 100, currency: "USD", home: "EUR", rate: 0.8957, spreadPercent: 3, feePercent: 2.99, fixedFee: 0.49 });
+  assert.equal(r.fee, 3.48);
+  assert.equal(r.marketHome, 89.57);
+  assert.equal(r.netHome, 83.86);
+  // Paid in your own currency: no conversion, only the fee.
+  const same = paypalReceive({ amount: 100, currency: "EUR", home: "EUR", rate: 1, spreadPercent: 3, feePercent: 2.99, fixedFee: 0.35 });
+  assert.equal(same.conversionCostHome, 0);
+  assert.equal(same.netHome, 96.66);
+  assert.deepEqual(paypalPay({ amount: 100, currency: "GBP", home: "USD", rate: 1.34, spreadPercent: 4 }), { marketHome: 134, chargedHome: 139.36, extraHome: 5.36 });
+  assert.equal(paypalPay({ amount: 100, currency: "USD", home: "USD", rate: 1, spreadPercent: 4 }).extraHome, 0);
+});
+
+test("PayPal: friends payment has no sale fee, and CHF to a Swiss account has no conversion", () => {
+  const friends = paypalReceive({ amount: 100, currency: "USD", home: "CHF", rate: 0.82, spreadPercent: 3, feePercent: 0, fixedFee: 0 });
   assert.equal(friends.fee, 0);
-  assert.equal(friends.netChf, 79.54);
-  const chf = paypalReceive({ amount: 100, currency: "CHF", rate: 1, spreadPercent: 3, goods: true, region: "ch" });
+  assert.equal(friends.netHome, 79.54);
+  const local = swissPaypalFee("CHF", "ch");
+  const chf = paypalReceive({ amount: 100, currency: "CHF", home: "CHF", rate: 1, spreadPercent: 3, feePercent: local.percent, fixedFee: local.fixed });
   assert.equal(chf.fee, 3.95);
-  assert.equal(chf.conversionCostChf, 0);
-  assert.equal(chf.netChf, 96.05);
+  assert.equal(chf.netHome, 96.05);
 });
 
 test("PayPal: paying in another currency costs the 4% markup", () => {
-  assert.deepEqual(paypalPay({ amount: 100, currency: "EUR", rate: 0.92, spreadPercent: 4 }), { marketChf: 92, chargedChf: 95.68, extraChf: 3.68 });
-  assert.equal(paypalPay({ amount: 100, currency: "CHF", rate: 1, spreadPercent: 4 }).extraChf, 0);
+  assert.deepEqual(paypalPay({ amount: 100, currency: "EUR", home: "CHF", rate: 0.92, spreadPercent: 4 }), { marketHome: 92, chargedHome: 95.68, extraHome: 3.68 });
 });
 
-test("PayPal: nothing to calculate without an amount or a rate", () => {
-  assert.equal(paypalReceive({ amount: 0, currency: "EUR", rate: 0.92, spreadPercent: 3, goods: true, region: "eea" }).netChf, 0);
-  assert.equal(paypalReceive({ amount: 100, currency: "EUR", rate: 0, spreadPercent: 3, goods: true, region: "eea" }).netChf, 0);
-  assert.equal(paypalPay({ amount: 100, currency: "EUR", rate: 0, spreadPercent: 4 }).chargedChf, 0);
-});
-
-test("PayPal: a tiny sale can't lose more than it received", () => {
-  const r = paypalReceive({ amount: 0.1, currency: "CHF", rate: 1, spreadPercent: 0, goods: true, region: "ch" });
-  assert.equal(r.netChf, 0);
+test("PayPal: nothing to calculate without an amount or a rate, and a fee stays within the payment", () => {
+  const base = { currency: "EUR", home: "CHF", spreadPercent: 3, feePercent: 4.69, fixedFee: 0.35 };
+  assert.equal(paypalReceive({ ...base, amount: 0, rate: 0.92 }).netHome, 0);
+  assert.equal(paypalReceive({ ...base, amount: 100, rate: 0 }).netHome, 0);
+  assert.equal(paypalReceive({ ...base, amount: 0.1, rate: 0.92 }).netHome, 0);
+  assert.equal(paypalReceive({ ...base, amount: 100, rate: 0.92, feePercent: -5, fixedFee: 0 }).fee, 0);
 });
 
 test("wardrobe value counts everything still owned, and nothing sold", () => {

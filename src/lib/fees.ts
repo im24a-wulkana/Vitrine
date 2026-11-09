@@ -99,47 +99,65 @@ export function estimateFees(platform: FeePlatform | undefined, price: number): 
 
 export interface PaypalReceipt {
   fee: number;
-  feeChf: number;
-  marketChf: number;
-  conversionCostChf: number;
-  netChf: number;
+  feeHome: number;
+  marketHome: number;
+  conversionCostHome: number;
+  netHome: number;
   /** Everything PayPal kept, compared with the market rate. */
   lostPercent: number;
 }
 
-/** Money received through PayPal in `currency`, then converted to CHF. `rate` is CHF for one unit. */
-export function paypalReceive(input: { amount: number; currency: string; rate: number; spreadPercent: number; goods: boolean; region: PaypalRegion }): PaypalReceipt {
-  const { amount, currency, rate, goods } = input;
-  if (!(amount > 0) || !(rate > 0)) return { fee: 0, feeChf: 0, marketChf: 0, conversionCostChf: 0, netChf: 0, lostPercent: 0 };
+/**
+ * Money received through PayPal in `currency`, then converted to your own currency.
+ * `rate` is how much one unit of `currency` is worth in yours. The sale fee is a
+ * percentage plus a fixed amount in the currency received.
+ */
+export function paypalReceive(input: {
+  amount: number;
+  currency: string;
+  home: string;
+  rate: number;
+  spreadPercent: number;
+  feePercent: number;
+  fixedFee: number;
+}): PaypalReceipt {
+  const { amount, rate } = input;
+  const none = { fee: 0, feeHome: 0, marketHome: 0, conversionCostHome: 0, netHome: 0, lostPercent: 0 };
+  if (!(amount > 0) || !(rate > 0)) return none;
 
-  const region = PAYPAL_REGIONS.find((r) => r.id === input.region) ?? PAYPAL_REGIONS[0];
-  const fee = goods ? Math.min(amount, (amount * (PAYPAL_PERCENT + region.percent)) / 100 + (PAYPAL_FIXED[currency] ?? 0)) : 0;
-  const spread = currency === "CHF" ? 0 : input.spreadPercent / 100;
-  const marketChf = amount * rate;
+  const fee = Math.min(amount, Math.max(0, (amount * input.feePercent) / 100 + input.fixedFee));
+  const spread = input.currency === input.home ? 0 : input.spreadPercent / 100;
+  const marketHome = amount * rate;
   const beforeConversion = (amount - fee) * rate;
-  const conversionCostChf = beforeConversion * spread;
-  const netChf = beforeConversion - conversionCostChf;
+  const conversionCostHome = beforeConversion * spread;
+  const netHome = beforeConversion - conversionCostHome;
   return {
     fee: round(fee),
-    feeChf: round(fee * rate),
-    marketChf: round(marketChf),
-    conversionCostChf: round(conversionCostChf),
-    netChf: round(netChf),
-    lostPercent: round(((marketChf - netChf) / marketChf) * 100),
+    feeHome: round(fee * rate),
+    marketHome: round(marketHome),
+    conversionCostHome: round(conversionCostHome),
+    netHome: round(netHome),
+    lostPercent: round(((marketHome - netHome) / marketHome) * 100),
   };
 }
 
-export interface PaypalPayment {
-  marketChf: number;
-  chargedChf: number;
-  extraChf: number;
+/** PayPal Switzerland's sale fee, for a Swiss account receiving `currency` from a buyer in `region`. */
+export function swissPaypalFee(currency: string, region: PaypalRegion): { percent: number; fixed: number } {
+  const extra = PAYPAL_REGIONS.find((r) => r.id === region)?.percent ?? 0;
+  return { percent: round(PAYPAL_PERCENT + extra), fixed: PAYPAL_FIXED[currency] ?? 0 };
 }
 
-/** Paying for something in `currency` from CHF, when PayPal does the conversion. */
-export function paypalPay(input: { amount: number; currency: string; rate: number; spreadPercent: number }): PaypalPayment {
-  const { amount, currency, rate } = input;
-  if (!(amount > 0) || !(rate > 0)) return { marketChf: 0, chargedChf: 0, extraChf: 0 };
-  const marketChf = round(amount * rate);
-  const chargedChf = round(amount * rate * (1 + (currency === "CHF" ? 0 : input.spreadPercent / 100)));
-  return { marketChf, chargedChf, extraChf: round(chargedChf - marketChf) };
+export interface PaypalPayment {
+  marketHome: number;
+  chargedHome: number;
+  extraHome: number;
+}
+
+/** Paying for something in `currency` from your own currency, when PayPal does the conversion. */
+export function paypalPay(input: { amount: number; currency: string; home: string; rate: number; spreadPercent: number }): PaypalPayment {
+  const { amount, rate } = input;
+  if (!(amount > 0) || !(rate > 0)) return { marketHome: 0, chargedHome: 0, extraHome: 0 };
+  const marketHome = round(amount * rate);
+  const chargedHome = round(amount * rate * (1 + (input.currency === input.home ? 0 : input.spreadPercent / 100)));
+  return { marketHome, chargedHome, extraHome: round(chargedHome - marketHome) };
 }
