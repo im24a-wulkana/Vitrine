@@ -46,6 +46,10 @@ npm run dev
 - **Check your fees.** Platforms at 0% in **Settings** use the published fees in `src/lib/fees.ts`, checked November 2026. Enter a rate there if yours differs, for example for a Ricardo category other than fashion. The sold dialog and calculators use the same numbers.
 - **Keep the database URL private.** It connects as the database owner.
 
+## Trades
+
+**Traded** on an item's page records a swap. What you got becomes a new item that carries what yours cost, plus or minus any cash on top, and yours closes as traded. Trades aren't counted as sales, so profit shows once, when you sell what you got. Undoing a trade removes what you got, unless it has been sold or traded on since.
+
 ## Demo
 
 The login page links to a demo that anyone can open without signing in. It's a shared account filled with sample data, opened read-only: the database itself refuses any change, and photo uploads and AI tagging are off. Refresh its data with `npm run demo:seed`.

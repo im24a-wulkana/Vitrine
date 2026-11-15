@@ -233,3 +233,22 @@ test("a refused write in the demo explains itself", async () => {
   const { error } = await createDbClient(readOnly).from("items").insert({ brand: "x", name: "y" });
   assert.match(error?.message ?? "", /This is the demo/);
 });
+
+test("a trade carries the cost over, shows no profit, and stays within one account", async () => {
+  const alice = createDbClient(scoped(ALICE));
+  const { data: oldJeans } = await alice.from("items").insert({ user_id: ALICE, brand: "Levi's", name: "501", buy_price: 40, status: "personal" }).select("id").single();
+  const { data: newJeans } = await alice.from("items").insert({ user_id: ALICE, brand: "Acne", name: "1996", buy_price: 55, status: "personal" }).select("id").single();
+  const trade = await alice.from("sales").insert({ item_id: oldJeans.id, platform: "Trade", sale_price: 40, kind: "trade", traded_for: newJeans.id, shipping_status: "delivered" });
+  assert.equal(trade.error, null);
+  const { data: closed } = await alice.from("items").select("status, sales(kind, traded_for, net_profit)").eq("id", oldJeans.id).single();
+  assert.deepEqual(closed, { status: "sold", sales: { kind: "trade", traded_for: newJeans.id, net_profit: 0 } });
+
+  // Someone else's item can't be named as what you got.
+  const { rows } = await db.query<{ id: string }>(`select id from public.items where user_id = $1 limit 1`, [BOB]);
+  const { data: another } = await alice.from("items").insert({ user_id: ALICE, brand: "X", name: "Y", buy_price: 1 }).select("id").single();
+  const sneaky = await alice.from("sales").insert({ item_id: another.id, platform: "Trade", sale_price: 1, kind: "trade", traded_for: rows[0].id });
+  assert.ok(sneaky.error, "trading for another account's item must fail");
+
+  const bad = await alice.from("sales").insert({ item_id: another.id, platform: "X", sale_price: 1, kind: "swap" });
+  assert.match(bad.error?.message ?? "", /check constraint/);
+});

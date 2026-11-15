@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CompHint } from "@/components/comp-hint";
 import { SoldDialog, type SoldTarget } from "@/components/sold-dialog";
+import { TradeDialog, type TradeTarget } from "@/components/trade-dialog";
 import { bulkSetStatus, deleteItems } from "@/lib/actions/items";
 import { closeListing, createListing, undoSale, updateListingPrice } from "@/lib/actions/sales";
 import { logWear } from "@/lib/actions/wardrobe";
@@ -24,6 +25,7 @@ interface Props {
 export function ItemActions({ item, listings, platforms, comps }: Props) {
   const router = useRouter();
   const [selling, setSelling] = useState<SoldTarget | null>(null);
+  const [trading, setTrading] = useState<TradeTarget | null>(null);
   const [listingOpen, setListingOpen] = useState(false);
   const [platform, setPlatform] = useState(platforms[0]?.name ?? "");
   const [price, setPrice] = useState("");
@@ -34,6 +36,7 @@ export function ItemActions({ item, listings, platforms, comps }: Props) {
 
   const open = listings.filter((l) => !l.delisted_at);
   const sold = item.status === "sold";
+  const traded = (item as { sales?: { kind?: string } | null }).sales?.kind === "trade";
   const wornToday = item.wears.some((w) => w.worn_on === localDate());
 
   function run(action: () => Promise<{ ok: true } | { ok: false; error: string }>, then?: () => void) {
@@ -62,6 +65,16 @@ export function ItemActions({ item, listings, platforms, comps }: Props) {
           }
         >
           Mark as sold
+        </Button>
+      )}
+      {!sold && (
+        <Button
+          type="button"
+          size="lg"
+          variant="outline"
+          onClick={() => setTrading({ id: item.id, brand: item.brand, name: item.name, category: item.category, buy_price_chf: item.buy_price_chf, status: item.status })}
+        >
+          Traded
         </Button>
       )}
 
@@ -137,8 +150,8 @@ export function ItemActions({ item, listings, platforms, comps }: Props) {
       )}
 
       {sold && (
-        <Button type="button" variant="outline" disabled={pending} onClick={() => run(() => undoSale(item.id))}>
-          Undo sale
+        <Button type="button" variant="outline" disabled={pending} onClick={() => run(() => undoSale(item.id), () => router.refresh())}>
+          {traded ? "Undo trade" : "Undo sale"}
         </Button>
       )}
 
@@ -158,6 +171,7 @@ export function ItemActions({ item, listings, platforms, comps }: Props) {
 
       {error && <p role="alert" className="text-sm font-medium">{error}</p>}
       <SoldDialog target={selling} platforms={platforms} onClose={() => setSelling(null)} />
+      <TradeDialog target={trading} onClose={() => setTrading(null)} />
     </section>
   );
 }

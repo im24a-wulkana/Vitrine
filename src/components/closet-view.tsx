@@ -13,7 +13,7 @@ import { addToOutfit, bulkSetStatus, deleteItems, setFavorite } from "@/lib/acti
 import { logWear } from "@/lib/actions/wardrobe";
 import { daysBetween, imageFitClass, localDate, money, primaryImage, signedMoney } from "@/lib/format";
 import { costPerWear } from "@/lib/metrics";
-import { closetTab, CLOSET_TABS, ITEM_STATUSES, STATUS_LABEL, type ClosetItem, type ClosetTab, type ItemStatus, type Platform, isSampleItem } from "@/lib/types";
+import { closetTab, CLOSET_TABS, ITEM_STATUSES, STATUS_LABEL, type ClosetItem, type ClosetTab, type ItemStatus, type Platform, isSampleItem, statusLabel } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type SortKey = "newest" | "oldest" | "price_high" | "price_low" | "most_worn" | "brand";
@@ -263,7 +263,7 @@ export function ClosetView({ items, platforms, outfits, unwornCount }: { items: 
                     <span className="eyebrow grid size-full place-items-center">No photo</span>
                   )}
                   <span className="absolute top-2 left-2 flex flex-wrap gap-1">
-                    <span className="badge">{STATUS_LABEL[item.status]}</span>
+                    <span className="badge">{statusLabel(item)}</span>
                     {isSampleItem(item) && <span className="badge border border-current">Sample</span>}
                   </span>
                   {item.wears.length > 0 && (
@@ -375,7 +375,7 @@ export function ClosetView({ items, platforms, outfits, unwornCount }: { items: 
                         </span>
                       </Link>
                     </td>
-                    <td className="p-2 whitespace-nowrap">{STATUS_LABEL[item.status]}</td>
+                    <td className="p-2 whitespace-nowrap">{statusLabel(item)}</td>
                     <td className="num p-2 text-right">{money(item.buy_price_chf)}</td>
                     <td className="num p-2 text-right">{listing?.list_price != null ? money(Number(listing.list_price)) : "—"}</td>
                     <td className="num p-2 text-right">{item.sales ? signedMoney(Number(item.sales.net_profit)) : "—"}</td>

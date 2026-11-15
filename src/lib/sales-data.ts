@@ -5,11 +5,13 @@ type SaleQueryRow = Omit<SaleRow, "brand" | "started_at"> & {
   items: { brand: string; size: string | null; buy_date: string | null; listings: { listed_at: string }[] };
 };
 
-/** All sales, shaped for the metrics functions. */
+/** All sales for money, shaped for the metrics functions. Trades are left out. */
 export async function getSaleRows(db: DbClient): Promise<SaleRow[]> {
   const { data, error } = await db
     .from("sales")
     .select("sold_at, platform, sale_price, fees, shipping_cost, item_cost_chf, net_profit, items!inner(brand, size, buy_date, listings(listed_at))")
+    // Trades involve no money, so they'd distort revenue, profit and comps.
+    .neq("kind", "trade")
     .limit(20000);
   if (error) throw new Error(error.message);
 
@@ -26,7 +28,7 @@ export async function getExpenseRows(db: DbClient): Promise<(ExpenseRow & { cate
 }
 
 export async function getCompRows(db: DbClient): Promise<CompRow[]> {
-  const { data, error } = await db.from("sales").select("sale_price, items!inner(brand, category)").limit(20000);
+  const { data, error } = await db.from("sales").select("sale_price, items!inner(brand, category)").neq("kind", "trade").limit(20000);
   if (error) throw new Error(error.message);
   return ((data ?? []) as unknown as { sale_price: number; items: { brand: string; category: string | null } }[]).map((row) => ({
     sale_price: row.sale_price,

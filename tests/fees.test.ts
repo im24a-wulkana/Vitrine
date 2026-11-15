@@ -128,3 +128,18 @@ test("wardrobe value counts everything still owned, and nothing sold", () => {
   assert.deepEqual(value.byStatus.listed, { count: 1, total: 100 });
   assert.deepEqual(wardrobeValue([]).total, 0);
 });
+
+test("what you got in a trade costs what yours did, adjusted for cash", async () => {
+  const { tradeCost } = await import("../src/lib/metrics");
+  assert.equal(tradeCost(40, 0, 0), 40);
+  assert.equal(tradeCost(40, 15.5, 0), 55.5);
+  assert.equal(tradeCost(40, 0, 10), 30);
+  assert.equal(tradeCost(40, 0, 60), 0, "never below zero");
+});
+
+test("traded items say Traded", async () => {
+  const { statusLabel } = await import("../src/lib/types");
+  assert.equal(statusLabel({ status: "sold", sales: { kind: "trade" } }), "Traded");
+  assert.equal(statusLabel({ status: "sold", sales: { kind: "sale" } }), "Sold");
+  assert.equal(statusLabel({ status: "personal", sales: null }), "Personal");
+});

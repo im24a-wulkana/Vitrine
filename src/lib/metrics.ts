@@ -305,3 +305,8 @@ export function wardrobeValue(rows: { status: string; buy_price_chf: number | st
     byStatus,
   };
 }
+
+/** What the item you got in a trade counts as costing: yours, plus cash paid, minus cash received. */
+export function tradeCost(tradedItemCost: number, cashPaid: number, cashReceived: number): number {
+  return Math.max(0, roundMoney(Number(tradedItemCost) + cashPaid - cashReceived));
+}

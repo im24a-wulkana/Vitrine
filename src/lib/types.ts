@@ -104,6 +104,10 @@ export interface Sale {
   net_profit: number;
   tracking_number: string | null;
   shipping_status: ShippingStatus;
+  /** A trade is a sale with no money: the item went for another item. */
+  kind: "sale" | "trade";
+  traded_for: string | null;
+  previous_status: string | null;
 }
 
 export interface Platform {
@@ -166,4 +170,9 @@ export type ActionResult<T = undefined> = { ok: true; data: T } | { ok: false; e
 export const SAMPLE_NOTE = "Sample data.";
 export function isSampleItem(item: { notes?: string | null }): boolean {
   return (item.notes ?? "").startsWith(SAMPLE_NOTE);
+}
+
+/** "Traded" for items that went in a trade, otherwise the status's own label. */
+export function statusLabel(item: { status: ItemStatus; sales?: { kind?: string } | null }): string {
+  return item.status === "sold" && item.sales?.kind === "trade" ? "Traded" : STATUS_LABEL[item.status];
 }

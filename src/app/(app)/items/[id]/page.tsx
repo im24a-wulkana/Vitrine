@@ -7,7 +7,7 @@ import { getCompRows } from "@/lib/sales-data";
 import { daysBetween, imageFitClass, localDate, money, shortDate, signedMoney } from "@/lib/format";
 import { costPerWear } from "@/lib/metrics";
 import { requireUser } from "@/lib/session";
-import { MEASUREMENTS, STATUS_LABEL, type InventoryItem, type Listing, type Offer, type Platform, type PriceChange, isSampleItem } from "@/lib/types";
+import { MEASUREMENTS, type InventoryItem, type Listing, type Offer, type Platform, type PriceChange, isSampleItem, statusLabel } from "@/lib/types";
 
 type DetailItem = InventoryItem & {
   listings: (Listing & { price_changes: PriceChange[] })[];
@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 export default async function ItemPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { db } = await requireUser();
-  const [{ data }, { data: platforms }, comps] = await Promise.all([
+  const [{ data }, { data: platforms }, comps, { data: gotIn }] = await Promise.all([
     db
       .from("items")
       .select("*, item_images(*), listings(*, price_changes(*)), sales(*), wears(worn_on), offers(*, platforms(name)), lots(id, name)")
@@ -34,10 +34,15 @@ export default async function ItemPage({ params }: { params: Promise<{ id: strin
       .maybeSingle(),
     db.from("platforms").select("*").order("name"),
     getCompRows(db),
+    db.from("sales").select("item_id, sold_at, items(id, brand, name)").eq("traded_for", id).maybeSingle(),
   ]);
   if (!data) notFound();
 
   const item = data as DetailItem;
+  const cameFrom = (gotIn as { sold_at: string; items: { id: string; brand: string; name: string } | null } | null) ?? null;
+  const tradedFor = item.sales?.traded_for
+    ? ((await db.from("items").select("id, brand, name").eq("id", item.sales.traded_for).maybeSingle()).data as { id: string; brand: string; name: string } | null)
+    : null;
   const images = [...item.item_images].sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || a.position - b.position);
   const listings = [...item.listings].sort((a, b) => b.listed_at.localeCompare(a.listed_at));
   const cpw = costPerWear(item.buy_price_chf, item.wears.length);
@@ -71,12 +76,23 @@ export default async function ItemPage({ params }: { params: Promise<{ id: strin
 
       <div className="flex flex-col gap-8">
         <header>
-          <p className="eyebrow">{item.brand} · {STATUS_LABEL[item.status]}{isSampleItem(item) && " · Sample"}</p>
+          <p className="eyebrow">{item.brand} · {statusLabel(item)}{isSampleItem(item) && " · Sample"}</p>
           <h1 className="page-title mt-2">{item.name}</h1>
           {item.tags.length > 0 && <p className="mt-3 flex flex-wrap gap-1.5">{item.tags.map((t) => <span key={t} className="eyebrow border px-1.5 py-0.5">{t}</span>)}</p>}
         </header>
 
-        {item.sales && (
+        {item.sales?.kind === "trade" ? (
+          <section aria-label="Trade" className="border-t pt-3 text-sm">
+            <p className="eyebrow">Traded {shortDate(item.sales.sold_at)}</p>
+            <p className="mt-1">
+              {tradedFor ? (
+                <>For <Link href={`/items/${tradedFor.id}`} className="underline underline-offset-4">{tradedFor.brand} {tradedFor.name}</Link>, which carries its cost of <span className="num">CHF {money(item.sales.item_cost_chf)}</span>.</>
+              ) : (
+                "What you got for it has since been deleted."
+              )}
+            </p>
+          </section>
+        ) : item.sales && (
           <section className="border-y py-4">
             <p className="eyebrow">Sold {shortDate(item.sales.sold_at)} on {item.sales.platform}</p>
             <p className="num mt-1 text-4xl">{signedMoney(Number(item.sales.net_profit))}</p>
@@ -89,6 +105,11 @@ export default async function ItemPage({ params }: { params: Promise<{ id: strin
           </section>
         )}
 
+        {cameFrom?.items && (
+          <p className="text-sm text-muted-foreground">
+            Got in a trade for <Link href={`/items/${cameFrom.items.id}`} className="underline underline-offset-4">{cameFrom.items.brand} {cameFrom.items.name}</Link> on {shortDate(cameFrom.sold_at)}.
+          </p>
+        )}
         <ItemActions item={item} listings={listings} platforms={(platforms ?? []) as Platform[]} comps={comps} />
 
         {item.lots && (
