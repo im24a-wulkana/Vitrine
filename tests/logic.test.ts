@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { guessMapping, mapRow, parseAmount, parseCsv, parseDate, toCsv, type ColumnMapping } from "../src/lib/csv";
 import { daysBetween, imageFitClass, rankBrands } from "../src/lib/format";
-import { closetTab } from "../src/lib/types";
+import { closetTab, isSampleItem } from "../src/lib/types";
 import { weatherKind, weatherLabel } from "../src/lib/weather";
 import { clampPosition, defaultPlacement, moveLayer, pieceInSlot, replaceSlot, slotFor } from "../src/lib/outfits";
 import {
@@ -309,4 +309,12 @@ test("weather codes group correctly, including ones not on the list", () => {
   for (const [code, kind] of cases) assert.equal(weatherKind(code), kind, String(code));
   assert.equal(weatherLabel(2), "Partly cloudy");
   assert.equal(weatherLabel(63), "Rain");
+});
+
+test("sample items are recognised by their note", () => {
+  assert.equal(isSampleItem({ notes: "Sample data." }), true);
+  assert.equal(isSampleItem({ notes: "Sample data. Bought in Zurich" }), true);
+  assert.equal(isSampleItem({ notes: "My sample sale find" }), false);
+  assert.equal(isSampleItem({ notes: null }), false);
+  assert.equal(isSampleItem({}), false);
 });

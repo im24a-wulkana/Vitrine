@@ -161,3 +161,9 @@ export interface ClosetItem extends InventoryItem {
 }
 
 export type ActionResult<T = undefined> = { ok: true; data: T } | { ok: false; error: string };
+
+/** Sample data is marked in its notes, so items loaded before this check count too. */
+export const SAMPLE_NOTE = "Sample data.";
+export function isSampleItem(item: { notes?: string | null }): boolean {
+  return (item.notes ?? "").startsWith(SAMPLE_NOTE);
+}

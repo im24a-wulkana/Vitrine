@@ -13,7 +13,7 @@ import { addToOutfit, bulkSetStatus, deleteItems, setFavorite } from "@/lib/acti
 import { logWear } from "@/lib/actions/wardrobe";
 import { daysBetween, imageFitClass, localDate, money, primaryImage, signedMoney } from "@/lib/format";
 import { costPerWear } from "@/lib/metrics";
-import { closetTab, CLOSET_TABS, ITEM_STATUSES, STATUS_LABEL, type ClosetItem, type ClosetTab, type ItemStatus, type Platform } from "@/lib/types";
+import { closetTab, CLOSET_TABS, ITEM_STATUSES, STATUS_LABEL, type ClosetItem, type ClosetTab, type ItemStatus, type Platform, isSampleItem } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type SortKey = "newest" | "oldest" | "price_high" | "price_low" | "most_worn" | "brand";
@@ -262,7 +262,10 @@ export function ClosetView({ items, platforms, outfits, unwornCount }: { items: 
                   ) : (
                     <span className="eyebrow grid size-full place-items-center">No photo</span>
                   )}
-                  <span className="badge absolute top-2 left-2">{STATUS_LABEL[item.status]}</span>
+                  <span className="absolute top-2 left-2 flex flex-wrap gap-1">
+                    <span className="badge">{STATUS_LABEL[item.status]}</span>
+                    {isSampleItem(item) && <span className="badge border border-current">Sample</span>}
+                  </span>
                   {item.wears.length > 0 && (
                     <span className="badge num absolute bottom-2 left-2 normal-case">
                       {item.wears.length}× · {money(cpw)}/wear
@@ -367,7 +370,7 @@ export function ClosetView({ items, platforms, outfits, unwornCount }: { items: 
                           {image && <img src={image} alt="" loading="lazy" className={cn("size-full", imageFitClass(item.item_images))} />}
                         </span>
                         <span className="min-w-0">
-                          <span className="eyebrow block">{item.brand}</span>
+                          <span className="eyebrow block">{item.brand}{isSampleItem(item) && " · Sample"}</span>
                           <span className="block max-w-56 truncate">{item.name}</span>
                         </span>
                       </Link>

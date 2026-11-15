@@ -1,3 +1,4 @@
+import { SAMPLE_NOTE } from "./types";
 import type { DbClient } from "./db/client";
 
 // Sample data: 15 made-up items across every status, plus sales, listings, wears,
@@ -124,7 +125,7 @@ export async function seedSampleData(db: DbClient, userId: string): Promise<void
           buy_date: daysAgo(item.bought),
           buy_source: item.source,
           tags: item.tags,
-          notes: "Sample data.",
+          notes: SAMPLE_NOTE,
           created_at: stamp(item.bought),
           ...DETAILS[item.key],
         })

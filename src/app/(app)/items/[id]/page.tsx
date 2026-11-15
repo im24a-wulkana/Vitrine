@@ -7,7 +7,7 @@ import { getCompRows } from "@/lib/sales-data";
 import { daysBetween, imageFitClass, localDate, money, shortDate, signedMoney } from "@/lib/format";
 import { costPerWear } from "@/lib/metrics";
 import { requireUser } from "@/lib/session";
-import { MEASUREMENTS, STATUS_LABEL, type InventoryItem, type Listing, type Offer, type Platform, type PriceChange } from "@/lib/types";
+import { MEASUREMENTS, STATUS_LABEL, type InventoryItem, type Listing, type Offer, type Platform, type PriceChange, isSampleItem } from "@/lib/types";
 
 type DetailItem = InventoryItem & {
   listings: (Listing & { price_changes: PriceChange[] })[];
@@ -71,7 +71,7 @@ export default async function ItemPage({ params }: { params: Promise<{ id: strin
 
       <div className="flex flex-col gap-8">
         <header>
-          <p className="eyebrow">{item.brand} · {STATUS_LABEL[item.status]}</p>
+          <p className="eyebrow">{item.brand} · {STATUS_LABEL[item.status]}{isSampleItem(item) && " · Sample"}</p>
           <h1 className="page-title mt-2">{item.name}</h1>
           {item.tags.length > 0 && <p className="mt-3 flex flex-wrap gap-1.5">{item.tags.map((t) => <span key={t} className="eyebrow border px-1.5 py-0.5">{t}</span>)}</p>}
         </header>
