@@ -8,6 +8,7 @@ const MAX_BYTES = 4 * 1024 * 1024;
 export async function POST(request: NextRequest) {
   const { user } = await getUser();
   if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+  if (user.demo) return NextResponse.json({ error: "Photos can't be added in the demo. Sign in with Google to use your own closet." }, { status: 403 });
 
   const file = (await request.formData()).get("file");
   if (!(file instanceof Blob)) return NextResponse.json({ error: "No file" }, { status: 400 });

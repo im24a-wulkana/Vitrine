@@ -9,6 +9,7 @@ const MAX_BYTES = 5 * 1024 * 1024;
 export async function POST(request: NextRequest) {
   const { user } = await getUser();
   if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+  if (user.demo) return NextResponse.json({ error: "AI tagging is off in the demo." }, { status: 403 });
 
   const provider = getVisionProvider();
   if (!provider) return NextResponse.json({ error: "AI isn't set up" }, { status: 503 });

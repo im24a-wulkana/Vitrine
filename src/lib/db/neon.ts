@@ -43,13 +43,16 @@ export function scopedStatements(userId: string | null, text: string, params: un
   ];
 }
 
-/** Row level security applies to everything this runs. */
-export function userRunner(userId: string | null): SqlRunner {
+/** Row level security applies to everything this runs. Read-only refuses any write, in the database itself. */
+export function userRunner(userId: string | null, mode: { readOnly?: boolean } = {}): SqlRunner {
   return {
     async query(text, params = []) {
       const sql = connection();
       const statements = scopedStatements(userId, text, params);
-      const results = await sql.transaction(statements.map((s) => sql.query(s.text, s.params, options)));
+      const results = await sql.transaction(
+        statements.map((s) => sql.query(s.text, s.params, options)),
+        mode.readOnly ? { readOnly: true } : undefined,
+      );
       return { rows: results[results.length - 1] as Record<string, unknown>[] };
     },
   };

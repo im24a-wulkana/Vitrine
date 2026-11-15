@@ -3,6 +3,8 @@ import type { SqlRunner } from "./client";
 export interface SessionUser {
   id: string;
   email: string;
+  /** The shared, read-only demo account. */
+  demo?: boolean;
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

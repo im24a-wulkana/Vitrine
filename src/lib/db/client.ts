@@ -1,6 +1,8 @@
 // The app's query builder. Every page and action goes through this, whichever
 // database is behind it: the embedded Postgres in local mode, or Neon.
 
+import { DEMO_READ_ONLY_MESSAGE } from "../demo";
+
 type Row = Record<string, unknown>;
 // Each caller casts data to the shape it selected.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -215,6 +217,7 @@ class Query implements PromiseLike<Result> {
       return { data: shaped[0] ?? null, error: null };
     } catch (e) {
       const err = e as { message?: string; code?: string };
+      if (/read-only transaction/.test(err.message ?? "")) return { data: null, error: { message: DEMO_READ_ONLY_MESSAGE, code: err.code } };
       return { data: null, error: { message: err.message ?? "Database error", code: err.code } };
     }
   }

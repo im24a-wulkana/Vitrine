@@ -204,3 +204,32 @@ test("the first sign-in creates a private account, and later ones change nothing
   assert.equal(await ensureUser(owner, "not-a-uuid'; drop table auth.users; --", "x@x.test"), null, "bad id");
   await db.query(`delete from auth.users where id = $1`, [NEW]);
 });
+
+test("the demo's connection asks Neon for a read-only transaction", async () => {
+  const previousFetch = globalThis.fetch;
+  const previousUrl = process.env.DATABASE_URL;
+  process.env.DATABASE_URL = "postgresql://owner:pw@ep-test.neon.tech/db";
+  const seen: Record<string, string>[] = [];
+  globalThis.fetch = (async (_url: unknown, init: { headers: Record<string, string> }) => {
+    seen.push(Object.fromEntries(Object.entries(init.headers).map(([k, v]) => [k.toLowerCase(), String(v)])));
+    const empty = { fields: [], rows: [], rowCount: 0, command: "SET", rowAsArray: true };
+    return new Response(JSON.stringify({ results: [empty, empty, empty] }), { status: 200, headers: { "content-type": "application/json" } });
+  }) as unknown as typeof fetch;
+  try {
+    const { userRunner } = await import("../src/lib/db/neon");
+    await userRunner(ALICE, { readOnly: true }).query("select 1");
+    await userRunner(ALICE).query("select 1");
+    assert.equal(seen[0]["neon-batch-read-only"], "true");
+    assert.notEqual(seen[1]["neon-batch-read-only"], "true");
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousUrl === undefined) delete process.env.DATABASE_URL;
+    else process.env.DATABASE_URL = previousUrl;
+  }
+});
+
+test("a refused write in the demo explains itself", async () => {
+  const readOnly: SqlRunner = { query: async () => { throw Object.assign(new Error("cannot execute INSERT in a read-only transaction"), { code: "25006" }); } };
+  const { error } = await createDbClient(readOnly).from("items").insert({ brand: "x", name: "y" });
+  assert.match(error?.message ?? "", /This is the demo/);
+});

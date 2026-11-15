@@ -1,7 +1,9 @@
 import { cache } from "react";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { ensureUser, type SessionUser } from "@/lib/db/accounts";
 import { createDbClient, type DbClient } from "@/lib/db/client";
+import { DEMO_COOKIE, DEMO_EMAIL, DEMO_USER_ID } from "@/lib/demo";
 import { isLocalMode } from "@/lib/mode";
 
 export type { SessionUser };
@@ -14,6 +16,9 @@ const currentUser = cache(async (): Promise<{ db: DbClient; user: SessionUser | 
 
   const [{ getAuth }, { ownerRunner, userRunner }] = await Promise.all([import("@/lib/auth"), import("@/lib/db/neon")]);
   const { data: session } = await getAuth().getSession();
+  if (!session?.user && (await cookies()).has(DEMO_COOKIE)) {
+    return { db: createDbClient(userRunner(DEMO_USER_ID, { readOnly: true })), user: { id: DEMO_USER_ID, email: DEMO_EMAIL, demo: true } };
+  }
   const user = await ensureUser(ownerRunner(), session?.user?.id, session?.user?.email);
   return { db: createDbClient(userRunner(user?.id ?? null)), user };
 });

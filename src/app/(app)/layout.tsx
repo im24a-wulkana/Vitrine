@@ -1,4 +1,5 @@
 import { Nav } from "@/components/nav";
+import { DemoBanner } from "@/components/demo-banner";
 import { BackButton, InstallHint } from "@/components/phone-shell";
 import { ScrollMemory } from "@/components/scroll-memory";
 import { ThemeSync } from "@/components/theme-sync";
@@ -26,6 +27,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="md:pl-56">
         <main className="app-main mx-auto max-w-6xl">
           <BackButton />
+          {user.demo && <DemoBanner />}
           <InstallHint />
           {children}
         </main>
